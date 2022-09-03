@@ -1,8 +1,10 @@
 import enum
+from http.client import NON_AUTHORITATIVE_INFORMATION
 import os
 from re import T
 import sys
 import math
+from tkinter.messagebox import NO
 import pygame
 from enum import Enum
 
@@ -58,8 +60,22 @@ class Board:
     def handle_mouse(self):
         mx, my = self._get_mouse_to_grid()
         cell_state = self.placed_walls[my][mx]
+        map_obj    = self.board_layout[my][mx]
         mouse_press = pygame.mouse.get_pressed()
-        # DO MOUSE STUFF HERE
+        if not mouse_press[0] and self.mouse_action != MouseAction.NONE:
+            self.mouse_action = MouseAction.NONE
+        if mouse_press[0]:
+            if self.mouse_action == MouseAction.NONE:
+                if cell_state:
+                    self.mouse_action = MouseAction.REMOVE
+                else:
+                    self.mouse_action = MouseAction.PLACE
+            if self.mouse_action == MouseAction.PLACE:
+                if map_obj == 0 or map_obj == 1:
+                    self.placed_walls[my][mx] = 1
+            elif self.mouse_action == MouseAction.REMOVE:
+                if map_obj == 0 or map_obj == 1:
+                    self.placed_walls[my][mx] = 0
 
     def _draw_sprite(self, sprite: pygame.image, grid_pos: tuple):
         pos_x = (grid_pos[0] + 1) * TILE_SIZE
@@ -124,6 +140,7 @@ def main():
         # update game
         game.handle_mouse()
         game.draw_debug_board()
+        #game.update()
 
         # update screen
         pygame.display.update()
