@@ -43,6 +43,7 @@ class Board:
         self.sprite_enemy = self._load_sprite(resource_path('sprite/enemy.png'))
         self.sprite_chest = self._load_sprite(resource_path('sprite/chest.png'))
         self.sprite_frame = self._load_sprite(resource_path('sprite/frame.png'))
+        self.sprite_win   = self._load_sprite(resource_path('sprite/win.png'), 500, 500)
         self.sprite_error_wall  = self._load_sprite(resource_path('sprite/error_wall.png'))
         self.sprite_error_floor = self._load_sprite(resource_path('sprite/error_floor.png'))
         self.sprite_number = []
@@ -55,8 +56,9 @@ class Board:
         for y in range(1, 9):
             for x in range(1, 9):
                 self.screen.blit(self.sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
-        self._draw_map_objects(True)
+        self._draw_map_objects(show_wall=False)
         self._draw_placed_walls()
+        #self.screen.blit(self.sprite_win, (128, 128))
     
     def handle_mouse(self):
         mx, my = self._get_mouse_to_grid()
@@ -109,9 +111,9 @@ class Board:
                 elif obj == 3:
                     self._draw_sprite(self.sprite_chest, (x, y))
 
-    def _load_sprite(self, path: str) -> pygame.image:
+    def _load_sprite(self, path: str, size_x: int = TILE_SIZE, size_y: int = TILE_SIZE) -> pygame.image:
         image = pygame.image.load(resource_path(path))
-        return pygame.transform.scale(image, (TILE_SIZE, TILE_SIZE))
+        return pygame.transform.scale(image, (size_x, size_x))
 
     def _get_mouse_to_grid(self) -> tuple:
         pos_x, pos_y = pygame.mouse.get_pos()
