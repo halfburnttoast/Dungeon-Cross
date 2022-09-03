@@ -1,0 +1,133 @@
+import enum
+import os
+from re import T
+import sys
+import math
+import pygame
+from enum import Enum
+
+TILE_SIZE = 80
+G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
+TARGET_FPS = 30
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+class MouseAction(Enum):
+    NONE   = 0,
+    PLACE  = 1,
+    REMOVE = 2,
+
+class Board:
+    def __init__(self, screen):
+        self.board_layout = (
+            (0, 0, 0, 0, 0, 1, 1, 1),
+            (0, 1, 0, 1, 0, 0, 0, 2),
+            (0, 1, 2, 1, 0, 1, 1, 1),
+            (0, 1, 1, 1, 0, 0, 0, 2),
+            (0, 0, 0, 1, 0, 1, 1, 1),
+            (0, 3, 0, 1, 0, 0, 0, 2),
+            (0, 0, 0, 1, 0, 1, 1, 1),
+            (1, 1, 1, 1, 0, 0, 0, 2),
+        )
+        self.mouse_action = MouseAction.NONE
+        self.placed_walls = [[0] * 8 for _ in range(8)]
+        self.screen = screen
+        self.sprite_wall  = self._load_sprite(resource_path('sprite/wall.png'))
+        self.sprite_floor = self._load_sprite(resource_path('sprite/floor.png'))
+        self.sprite_enemy = self._load_sprite(resource_path('sprite/enemy.png'))
+        self.sprite_chest = self._load_sprite(resource_path('sprite/chest.png'))
+        self.sprite_frame = self._load_sprite(resource_path('sprite/frame.png'))
+        self.sprite_number = []
+        for i in range(0, 9):
+            self.sprite_number.append(self._load_sprite(resource_path(f'sprite/{i}.png')))
+
+    def draw_debug_board(self):
+        self._draw_frame()
+        for y in range(1, 9):
+            for x in range(1, 9):
+                self.screen.blit(self.sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
+        self._draw_map_objects()
+        self._draw_placed_walls()
+    
+    def handle_mouse(self):
+        mx, my = self._get_mouse_to_grid()
+        cell_state = self.placed_walls[my][mx]
+        mouse_press = pygame.mouse.get_pressed()
+        # DO MOUSE STUFF HERE
+
+    def _draw_sprite(self, sprite: pygame.image, grid_pos: tuple):
+        pos_x = (grid_pos[0] + 1) * TILE_SIZE
+        pos_y = (grid_pos[1] + 1) * TILE_SIZE
+        self.screen.blit(sprite, (pos_x, pos_y))
+
+    def _draw_placed_walls(self):
+        for y, row in enumerate(self.placed_walls):
+            for x, obj in enumerate(row):
+                if obj:
+                    self._draw_sprite(self.sprite_wall, (x, y))  
+
+    def _draw_map_objects(self, show_wall: bool = False):
+        for y, row in enumerate(self.board_layout):
+            for x, obj in enumerate(row):
+                if  show_wall and obj == 1:
+                    self._draw_sprite(self.sprite_wall, (x, y))
+                elif obj == 2:
+                    self._draw_sprite(self.sprite_enemy, (x, y))
+                elif obj == 3:
+                    self._draw_sprite(self.sprite_chest, (x, y))
+
+    def _load_sprite(self, path: str) -> pygame.image:
+        image = pygame.image.load(resource_path(path))
+        return pygame.transform.scale(image, (TILE_SIZE, TILE_SIZE))
+
+    def _get_mouse_to_grid(self) -> tuple:
+        pos_x, pos_y = pygame.mouse.get_pos()
+        pos_x = math.floor((pos_x / TILE_SIZE) - 1)
+        pos_y = math.floor((pos_y / TILE_SIZE) - 1)
+        pos_x = max(min(8, pos_x), 0)
+        pos_y = max(min(8, pos_y), 0)
+        return(pos_x, pos_y)
+
+    def _draw_frame(self):
+        for x in range(0, 9):
+            self.screen.blit(self.sprite_number[x], (x * TILE_SIZE, 0))
+            self.screen.blit(self.sprite_number[x], (0, x * TILE_SIZE))
+
+
+def main():
+    pygame.init()
+    screen = pygame.display.set_mode(G_RESOLUTION)
+    clock = pygame.time.Clock()
+    pygame.display.set_caption("Dungeon Cross")
+    game = Board(screen)
+    game_run = True
+
+    while game_run:
+
+        # clear screen
+        screen.fill(pygame.color.Color(0, 0, 0))
+
+        # handle quit events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                game_run = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    game_run = False
+        
+        # update game
+        game.handle_mouse()
+        game.draw_debug_board()
+
+        # update screen
+        pygame.display.update()
+        clock.tick(TARGET_FPS)
+
+if __name__ == '__main__':
+    main()
