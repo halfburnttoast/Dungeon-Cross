@@ -1,10 +1,6 @@
-import enum
-from http.client import NON_AUTHORITATIVE_INFORMATION
 import os
-from re import T
 import sys
 import math
-from tkinter.messagebox import NO
 import pygame
 from enum import Enum
 
@@ -47,6 +43,8 @@ class Board:
         self.sprite_enemy = self._load_sprite(resource_path('sprite/enemy.png'))
         self.sprite_chest = self._load_sprite(resource_path('sprite/chest.png'))
         self.sprite_frame = self._load_sprite(resource_path('sprite/frame.png'))
+        self.sprite_error_wall  = self._load_sprite(resource_path('sprite/error_wall.png'))
+        self.sprite_error_floor = self._load_sprite(resource_path('sprite/error_floor.png'))
         self.sprite_number = []
         for i in range(0, 9):
             self.sprite_number.append(self._load_sprite(resource_path(f'sprite/{i}.png')))
