@@ -37,6 +37,8 @@ class Board:
             (0, 0, 0, 1, 0, 1, 1, 1),
             (1, 1, 1, 1, 0, 0, 0, 2),
         )
+        self.hint_x = [0] * 8
+        self.hint_y = [0] * 8
         self.mouse_action = MouseAction.NONE
         self.placed_walls = [[0] * 8 for _ in range(8)]
         self.screen = screen
@@ -48,13 +50,14 @@ class Board:
         self.sprite_number = []
         for i in range(0, 9):
             self.sprite_number.append(self._load_sprite(resource_path(f'sprite/{i}.png')))
+        self._calc_hints()
 
     def draw_debug_board(self):
         self._draw_frame()
         for y in range(1, 9):
             for x in range(1, 9):
                 self.screen.blit(self.sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
-        self._draw_map_objects()
+        self._draw_map_objects(True)
         self._draw_placed_walls()
     
     def handle_mouse(self):
@@ -76,6 +79,16 @@ class Board:
             elif self.mouse_action == MouseAction.REMOVE:
                 if map_obj == 0 or map_obj == 1:
                     self.placed_walls[my][mx] = 0
+
+    def _calc_hints(self):
+        for i, v in enumerate(self.board_layout):
+            self.hint_y[i] = v.count(1)
+        for x in range(8):
+            sum_y = 0
+            for y in range(8):
+                if self.board_layout[y][x] == 1:
+                    sum_y = sum_y + 1
+            self.hint_x[x] = sum_y
 
     def _draw_sprite(self, sprite: pygame.image, grid_pos: tuple):
         pos_x = (grid_pos[0] + 1) * TILE_SIZE
@@ -111,9 +124,11 @@ class Board:
         return(pos_x, pos_y)
 
     def _draw_frame(self):
-        for x in range(0, 9):
-            self.screen.blit(self.sprite_number[x], (x * TILE_SIZE, 0))
-            self.screen.blit(self.sprite_number[x], (0, x * TILE_SIZE))
+        for i in range(1, 9):
+            hint_x = self.sprite_number[self.hint_x[i - 1]]
+            hint_y = self.sprite_number[self.hint_y[i - 1]]
+            self.screen.blit(hint_x, (i * TILE_SIZE, 0))
+            self.screen.blit(hint_y, (0, i * TILE_SIZE))
 
 
 def main():
@@ -130,7 +145,9 @@ def main():
         screen.fill(pygame.color.Color(0, 0, 0))
 
         # handle quit events
-        for event in pygame.event.get():
+        events = pygame.event.get()
+        game.handle_mouse()
+        for event in events:
             if event.type == pygame.QUIT:
                 game_run = False
             if event.type == pygame.KEYDOWN:
@@ -138,7 +155,6 @@ def main():
                     game_run = False
         
         # update game
-        game.handle_mouse()
         game.draw_debug_board()
         #game.update()
 
