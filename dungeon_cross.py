@@ -6,38 +6,41 @@ from enum import Enum
 
 TILE_SIZE = 80
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
-TARGET_FPS = 30
+TARGET_FPS = 15
 
 def resource_path(relative_path):
     try:
         base_path = sys._MEIPASS
     except Exception:
         base_path = os.path.abspath(".")
-
     return os.path.join(base_path, relative_path)
 
 class MouseAction(Enum):
     NONE   = 0,
     PLACE  = 1,
     REMOVE = 2,
+    MARK   = 3
 
 class Board:
     def __init__(self, screen):
-        self.board_layout = (
-            (0, 0, 0, 0, 0, 1, 1, 1),
-            (0, 1, 0, 1, 0, 0, 0, 2),
-            (0, 1, 2, 1, 0, 1, 1, 1),
-            (0, 1, 1, 1, 0, 0, 0, 2),
-            (0, 0, 0, 1, 0, 1, 1, 1),
-            (0, 3, 0, 1, 0, 0, 0, 2),
-            (0, 0, 0, 1, 0, 1, 1, 1),
-            (1, 1, 1, 1, 0, 0, 0, 2),
-        )
+        self.board_layout = [
+            [0, 0, 0, 0, 0, 1, 1, 1],
+            [0, 1, 0, 1, 0, 0, 0, 2],
+            [0, 1, 2, 1, 0, 1, 1, 1],
+            [0, 1, 1, 1, 0, 0, 0, 2],
+            [0, 0, 0, 1, 0, 1, 1, 1],
+            [0, 3, 0, 1, 0, 0, 0, 2],
+            [0, 0, 0, 1, 0, 1, 1, 1],
+            [1, 1, 1, 1, 0, 0, 0, 2],
+        ]
         self.hint_x = [0] * 8
         self.hint_y = [0] * 8
         self.mouse_action = MouseAction.NONE
-        self.placed_walls = [[0] * 8 for _ in range(8)]
         self.screen = screen
+        self.check_win_state = False
+        self.game_won = False
+
+        # load sprites
         self.sprite_wall  = self._load_sprite(resource_path('sprite/wall.png'))
         self.sprite_floor = self._load_sprite(resource_path('sprite/floor.png'))
         self.sprite_enemy = self._load_sprite(resource_path('sprite/enemy.png'))
@@ -49,7 +52,10 @@ class Board:
         self.sprite_number = []
         for i in range(0, 9):
             self.sprite_number.append(self._load_sprite(resource_path(f'sprite/{i}.png')))
+
+        # calculate hints for border
         self._calc_hints()
+        self.placed_walls = self._strip_walls()
 
     def draw_debug_board(self):
         self._draw_frame()
@@ -58,7 +64,8 @@ class Board:
                 self.screen.blit(self.sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
         self._draw_map_objects(show_wall=False)
         self._draw_placed_walls()
-        #self.screen.blit(self.sprite_win, (128, 128))
+        if self.game_won:
+            self.screen.blit(self.sprite_win, (128, 128))
     
     def handle_mouse(self):
         mx, my = self._get_mouse_to_grid()
@@ -67,7 +74,7 @@ class Board:
         mouse_press = pygame.mouse.get_pressed()
         if not mouse_press[0] and self.mouse_action != MouseAction.NONE:
             self.mouse_action = MouseAction.NONE
-        if mouse_press[0]:
+        if mouse_press[0] and not self.game_won:
             if self.mouse_action == MouseAction.NONE:
                 if cell_state:
                     self.mouse_action = MouseAction.REMOVE
@@ -75,10 +82,28 @@ class Board:
                     self.mouse_action = MouseAction.PLACE
             if self.mouse_action == MouseAction.PLACE:
                 if map_obj == 0 or map_obj == 1:
-                    self.placed_walls[my][mx] = 1
+                    if cell_state == 0:
+                        self.placed_walls[my][mx] = 1
+                        self.check_win_state = True
             elif self.mouse_action == MouseAction.REMOVE:
                 if map_obj == 0 or map_obj == 1:
-                    self.placed_walls[my][mx] = 0
+                    if cell_state == 1:
+                        self.placed_walls[my][mx] = 0
+                        self.check_win_state = True
+        if self.check_win_state:
+            self._check_win()
+    
+    def _check_win(self):
+        if self.board_layout == self.placed_walls:
+            self.game_won = True
+            print("Win")
+        self.check_win_state = False
+
+    def _strip_walls(self) -> list:
+        out = []
+        for row in self.board_layout:
+            out.append([v if v != 1 else 0 for v in row])
+        return out
 
     def _calc_hints(self):
         for i, v in enumerate(self.board_layout):
@@ -98,7 +123,7 @@ class Board:
     def _draw_placed_walls(self):
         for y, row in enumerate(self.placed_walls):
             for x, obj in enumerate(row):
-                if obj:
+                if obj == 1:
                     self._draw_sprite(self.sprite_wall, (x, y))  
 
     def _draw_map_objects(self, show_wall: bool = False):
