@@ -47,8 +47,6 @@ class Board:
         self.sprite_chest = self._load_sprite(resource_path('sprite/chest.png'))
         self.sprite_frame = self._load_sprite(resource_path('sprite/frame.png'))
         self.sprite_win   = self._load_sprite(resource_path('sprite/win.png'), 500, 500)
-        self.sprite_error_wall  = self._load_sprite(resource_path('sprite/error_wall.png'))
-        self.sprite_error_floor = self._load_sprite(resource_path('sprite/error_floor.png'))
         self.sprite_number = []
         for i in range(0, 9):
             self.sprite_number.append(self._load_sprite(resource_path(f'sprite/{i}.png')))
@@ -56,6 +54,9 @@ class Board:
         # calculate hints for border
         self._calc_hints()
         self.placed_walls = self._strip_walls()
+
+    def load_map(self):
+        pass
 
     def draw_debug_board(self):
         self._draw_frame()
@@ -154,6 +155,7 @@ class Board:
             hint_y = self.sprite_number[self.hint_y[i - 1]]
             self.screen.blit(hint_x, (i * TILE_SIZE, 0))
             self.screen.blit(hint_y, (0, i * TILE_SIZE))
+        self.screen.blit(self.sprite_frame, (0, 0))
 
 
 def main():
