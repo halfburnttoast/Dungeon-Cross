@@ -7,6 +7,8 @@ import pygame
 import random
 from enum import Enum
 
+VERSION = "v0.9.1"
+
 TILE_SIZE = 80
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 30
@@ -29,12 +31,13 @@ class MapObject(Enum):
     WALL  = 1
     ENEMY = 2
     CHEST = 3
+    MARK  = 4
 
 class Board:
     def __init__(self, screen):
         self.board_layout = []
         self.puzzle_book = []
-
+        self.placed_walls = []
         self.hint_x = [0] * 8
         self.hint_y = [0] * 8
         self.x_err  = []
@@ -45,7 +48,7 @@ class Board:
         self.game_won = False
 
         # error overlay
-        self._err_overlay = pygame.Surface((TILE_SIZE,TILE_SIZE))
+        self._err_overlay = pygame.Surface((TILE_SIZE, TILE_SIZE))
         self._err_overlay.fill((255, 0, 0))
         self._err_overlay.set_alpha(120)
 
@@ -55,6 +58,7 @@ class Board:
         self.sprite_enemy = self._load_sprite(resource_path('sprite/enemy.png'))
         self.sprite_chest = self._load_sprite(resource_path('sprite/chest.png'))
         self.sprite_frame = self._load_sprite(resource_path('sprite/frame.png'))
+        self.sprite_mark  = self._load_sprite(resource_path('sprite/mark.png'))
         self.sprite_win   = self._load_sprite(resource_path('sprite/win.png'), 500, 500)
         self.sprite_number = []
         for i in range(0, 9):
@@ -91,7 +95,7 @@ class Board:
             for x in range(1, 9):
                 self.screen.blit(self.sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
         self._draw_map_objects(show_wall=False)
-        self._draw_placed_walls()
+        self._draw_placed_objects()
         self._draw_errors()
         if self.game_won:
             self.screen.blit(self.sprite_win, (128, 128))
@@ -176,11 +180,13 @@ class Board:
         pos_y = (grid_pos[1] + 1) * TILE_SIZE
         self.screen.blit(sprite, (pos_x, pos_y))
 
-    def _draw_placed_walls(self):
+    def _draw_placed_objects(self):
         for y, row in enumerate(self.placed_walls):
             for x, obj in enumerate(row):
-                if obj == 1:
-                    self._draw_sprite(self.sprite_wall, (x, y))  
+                if obj == MapObject.WALL.value:
+                    self._draw_sprite(self.sprite_wall, (x, y))
+                elif obj == MapObject.MARK.value:
+                    self._draw_sprite(self.sprite_mark, (x, y))
 
     def _draw_map_objects(self, show_wall: bool = False):
         for y, row in enumerate(self.board_layout):
@@ -211,13 +217,14 @@ class Board:
             self.screen.blit(hint_x, (i * TILE_SIZE, 0))
             self.screen.blit(hint_y, (0, i * TILE_SIZE))
         self.screen.blit(self.sprite_frame, (0, 0))
+        self.screen.blit(self.sprite_mark, (0, 0))
 
 
 def main():
     pygame.init()
     screen = pygame.display.set_mode(G_RESOLUTION)
     clock = pygame.time.Clock()
-    pygame.display.set_caption("Dungeon Cross")
+    pygame.display.set_caption(f"Dungeon Cross - {VERSION}")
     game = Board(screen)
     game.load_puzzle_book()
     game_run = True
