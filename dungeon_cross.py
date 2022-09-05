@@ -9,7 +9,7 @@ from enum import Enum
 
 VERSION = "v0.9.1"
 
-TILE_SIZE = 80
+TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 30
 
@@ -21,10 +21,12 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 class MouseAction(Enum):
-    NONE   = 0
-    PLACE  = 1
-    REMOVE = 2
-    MARK   = 3
+    NONE        = 0
+    PLACE_WALL  = 1
+    PLACE_MARK  = 2
+    REMOVE_WALL = 3
+    REMOVE_MARK = 4
+    MARK        = 5
 
 class MapObject(Enum):
     EMPTY = 0
@@ -94,7 +96,7 @@ class Board:
         for y in range(1, 9):
             for x in range(1, 9):
                 self.screen.blit(self.sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
-        self._draw_map_objects(show_wall=False)
+        self._draw_map_tileects(show_wall=False)
         self._draw_placed_objects()
         self._draw_errors()
         if self.game_won:
@@ -102,37 +104,61 @@ class Board:
     
     def handle_mouse(self):
         mx, my      = self._get_mouse_to_grid()
-        cell_state  = self.placed_walls[my][mx]
-        map_obj     = self.board_layout[my][mx]
+        user_tile  = self.placed_walls[my][mx]
+        map_tile     = self.board_layout[my][mx]
         mouse_press = pygame.mouse.get_pressed()
-        if not mouse_press[0] and self.mouse_action != MouseAction.NONE.value:
+        click_lmb   = mouse_press[0]
+        click_rmb   = mouse_press[2]
+
+        # reset mouse action if no buttons are being pressed
+        if not True in [click_lmb, click_rmb] and self.mouse_action != MouseAction.NONE.value:
             self.mouse_action = MouseAction.NONE.value
-        if mouse_press[0] and not self.game_won:
+
+        # update mouse action if not already set
+        if not self.game_won:
             if self.mouse_action == MouseAction.NONE.value:
-                if cell_state:
-                    self.mouse_action = MouseAction.REMOVE.value
-                else:
-                    self.mouse_action = MouseAction.PLACE.value
-            if self.mouse_action == MouseAction.PLACE.value:
-                if map_obj == MapObject.EMPTY.value or map_obj == MapObject.WALL.value:
-                    if cell_state == MapObject.EMPTY.value:
-                        self.placed_walls[my][mx] = MapObject.WALL.value
-                        self.check_board_state = True
-            elif self.mouse_action == MouseAction.REMOVE.value:
-                if map_obj == MapObject.EMPTY.value or map_obj == MapObject.WALL.value:
-                    if cell_state == MapObject.WALL.value:
-                        self.placed_walls[my][mx] = MapObject.EMPTY.value
-                        self.check_board_state = True
-        if self.check_board_state:
-            self._check_for_errors()
-            self._check_win()
-            self.check_board_state = False
+                if click_lmb:
+                    if user_tile:
+                        self.mouse_action = MouseAction.REMOVE_WALL.value
+                    else:
+                        self.mouse_action = MouseAction.PLACE_WALL.value
+                elif click_rmb:
+                    if user_tile:
+                        self.mouse_action = MouseAction.REMOVE_MARK.value
+                    else:
+                        self.mouse_action = MouseAction.PLACE_MARK.value                    
+
+            # update user tiles based on mouse location and action
+            if self.mouse_action:
+                if map_tile in [MapObject.EMPTY.value, MapObject.WALL.value]:
+                    if self.mouse_action == MouseAction.PLACE_WALL.value:
+                        if user_tile == MapObject.EMPTY.value:
+                            self.placed_walls[my][mx] = MapObject.WALL.value
+                            self.check_board_state = True
+                    elif self.mouse_action == MouseAction.REMOVE_WALL.value:
+                        if user_tile == MapObject.WALL.value:
+                            self.placed_walls[my][mx] = MapObject.EMPTY.value
+                            self.check_board_state = True
+                    elif self.mouse_action == MouseAction.PLACE_MARK.value:
+                        if user_tile == MapObject.EMPTY.value:
+                            self.placed_walls[my][mx] = MapObject.MARK.value
+                    elif self.mouse_action == MouseAction.REMOVE_MARK.value:
+                         if user_tile == MapObject.MARK.value:
+                            self.placed_walls[my][mx] = MapObject.EMPTY.value                   
+
+
+            # if a user wall has changed, check for errors/win condition
+            if self.check_board_state:
+                self._check_for_errors()
+                self._check_win()
+                self.check_board_state = False
 
     def get_number_of_puzzles(self):
         return len(self.puzzle_book)
     
     def _check_win(self):
-        if self.board_layout == self.placed_walls:
+        user_board = self._strip_marks()
+        if self.board_layout == user_board:
             self.game_won = True
     
     def _check_for_errors(self):
@@ -165,6 +191,12 @@ class Board:
             out.append([v if v != MapObject.WALL.value else MapObject.EMPTY.value for v in row])
         return out
 
+    def _strip_marks(self) -> list:
+        out = []
+        for row in self.placed_walls:
+            out.append([v if v != MapObject.MARK.value else MapObject.EMPTY.value for v in row])
+        return out        
+
     def _calc_hints(self):
         for i, v in enumerate(self.board_layout):
             self.hint_y[i] = v.count(MapObject.WALL.value)
@@ -188,7 +220,7 @@ class Board:
                 elif obj == MapObject.MARK.value:
                     self._draw_sprite(self.sprite_mark, (x, y))
 
-    def _draw_map_objects(self, show_wall: bool = False):
+    def _draw_map_tileects(self, show_wall: bool = False):
         for y, row in enumerate(self.board_layout):
             for x, obj in enumerate(row):
                 if show_wall and obj == MapObject.WALL.value:
