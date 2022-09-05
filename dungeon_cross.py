@@ -7,7 +7,7 @@ import pygame
 import random
 from enum import Enum
 
-VERSION = "v0.9.1"
+VERSION = "v0.10.0"
 
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -48,6 +48,7 @@ class Board:
         self.screen = screen
         self.check_board_state = False
         self.game_won = False
+        self.last_puzzle_id = -1
 
         # error overlay
         self._err_overlay = pygame.Surface((TILE_SIZE, TILE_SIZE))
@@ -61,12 +62,13 @@ class Board:
         self.sprite_chest = self._load_sprite(resource_path('sprite/chest.png'))
         self.sprite_frame = self._load_sprite(resource_path('sprite/frame.png'))
         self.sprite_mark  = self._load_sprite(resource_path('sprite/mark.png'))
-        self.sprite_win   = self._load_sprite(resource_path('sprite/win.png'), 500, 500)
+        self.sprite_win   = self._load_sprite(resource_path('sprite/win.png'), G_RESOLUTION[0], G_RESOLUTION[1])
         self.sprite_number = []
         for i in range(0, 9):
             self.sprite_number.append(self._load_sprite(resource_path(f'sprite/{i}.png')))
 
     def load_puzzle_book(self, file_name: str = "puzzles.json"):
+        """Loads a JSON file containing the puzzle data. Puzzles are stored as a list of lists."""
         try:
             with open(file_name, 'r') as f:
                 self.puzzle_book = json.load(f)
@@ -77,6 +79,7 @@ class Board:
         print(self.puzzle_book)
     
     def open_puzzle(self, num: int = 0):
+        """Opens a puzzle by ID."""
         self.hint_x = [0] * 8
         self.hint_y = [0] * 8
         self.x_err  = []
@@ -86,23 +89,32 @@ class Board:
         self.placed_walls = self._strip_walls()
         self.check_board_state = False
         self.game_won = False
+        self.last_puzzle_id = num
     
     def open_random_puzzle(self):
+        """Opens a random puzzle. Will not select the same puzzle twice in a row."""
         pid = random.choice(range(0, len(self.puzzle_book)))
+        if pid == self.last_puzzle_id:
+            pid = (pid + 1) % len(self.puzzle_book)
         self.open_puzzle(pid)
 
-    def draw_debug_board(self):
+    def draw_all(self):
         self._draw_frame()
         for y in range(1, 9):
             for x in range(1, 9):
                 self.screen.blit(self.sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
-        self._draw_map_tileects(show_wall=False)
+        self._draw_map_tiles(show_wall=False)
         self._draw_placed_objects()
         self._draw_errors()
         if self.game_won:
-            self.screen.blit(self.sprite_win, (128, 128))
+            self.screen.blit(self.sprite_win, (0, 0))
     
     def handle_mouse(self):
+        """
+        Handles all mouse input/actions. If a user-placed wall is changed, it will automatically
+        call the routines to check for a win condition or if an error is made. 
+        """
+
         mx, my      = self._get_mouse_to_grid()
         user_tile  = self.placed_walls[my][mx]
         map_tile     = self.board_layout[my][mx]
@@ -146,7 +158,6 @@ class Board:
                          if user_tile == MapObject.MARK.value:
                             self.placed_walls[my][mx] = MapObject.EMPTY.value                   
 
-
             # if a user wall has changed, check for errors/win condition
             if self.check_board_state:
                 self._check_for_errors()
@@ -154,14 +165,22 @@ class Board:
                 self.check_board_state = False
 
     def get_number_of_puzzles(self):
+        """Returns total number of puzzles loaded."""
         return len(self.puzzle_book)
     
     def _check_win(self):
+        """Checks to see if the user-modified board matches the puzzle book board."""
         user_board = self._strip_marks()
         if self.board_layout == user_board:
             self.game_won = True
     
     def _check_for_errors(self):
+        """
+        Generates the sum of user-placed walls by row and column. Checks to see 
+        if any of those user values exceed the generated hints from the puzzle.
+        Updates the error arrays x_err and y_err with the indexes of the errors.
+        """
+
         x_sum = []
         y_sum = []
 
@@ -180,18 +199,21 @@ class Board:
         self.y_err = [i for i, v in enumerate(y_sum) if v > self.hint_y[i]]
 
     def _draw_errors(self):
+        """Draws a red overlay over the hint numbers based on the values in x_err and y_err"""
         for i in self.x_err:
             self.screen.blit(self._err_overlay, ((i + 1) * TILE_SIZE, 0))
         for i in self.y_err:
             self.screen.blit(self._err_overlay, (0, (i + 1) * TILE_SIZE))
 
     def _strip_walls(self) -> list:
+        """Removes walls from loaded puzzle. Used to generate the 'user board'."""
         out = []
         for row in self.board_layout:
             out.append([v if v != MapObject.WALL.value else MapObject.EMPTY.value for v in row])
         return out
 
     def _strip_marks(self) -> list:
+        """Removes all user-placed marks. Used by _check_win"""
         out = []
         for row in self.placed_walls:
             out.append([v if v != MapObject.MARK.value else MapObject.EMPTY.value for v in row])
@@ -220,7 +242,7 @@ class Board:
                 elif obj == MapObject.MARK.value:
                     self._draw_sprite(self.sprite_mark, (x, y))
 
-    def _draw_map_tileects(self, show_wall: bool = False):
+    def _draw_map_tiles(self, show_wall: bool = False):
         for y, row in enumerate(self.board_layout):
             for x, obj in enumerate(row):
                 if show_wall and obj == MapObject.WALL.value:
@@ -278,10 +300,11 @@ def main():
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         game_run = False
+                    elif event.key == pygame.K_SPACE:
+                        game.open_random_puzzle()
             
-            # update game
-            game.draw_debug_board()
-            #game.update()
+            # draw game assets
+            game.draw_all()
 
             # update screen
             pygame.display.update()
