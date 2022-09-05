@@ -70,7 +70,7 @@ class Board:
     def load_puzzle_book(self, file_name: str = "puzzles.json"):
         """Loads a JSON file containing the puzzle data. Puzzles are stored as a list of lists."""
         try:
-            with open(file_name, 'r') as f:
+            with open(resource_path(file_name), 'r') as f:
                 self.puzzle_book = json.load(f)
                 f.close()
         except FileNotFoundError:
@@ -167,6 +167,10 @@ class Board:
     def get_number_of_puzzles(self):
         """Returns total number of puzzles loaded."""
         return len(self.puzzle_book)
+    
+    def get_puzzle_id(self) -> int:
+        """Returns the ID of the currently open puzzle."""
+        return self.last_puzzle_id
     
     def _check_win(self):
         """Checks to see if the user-modified board matches the puzzle book board."""
@@ -271,7 +275,6 @@ class Board:
             self.screen.blit(hint_x, (i * TILE_SIZE, 0))
             self.screen.blit(hint_y, (0, i * TILE_SIZE))
         self.screen.blit(self.sprite_frame, (0, 0))
-        self.screen.blit(self.sprite_mark, (0, 0))
 
 
 def main():
@@ -302,6 +305,8 @@ def main():
                         game_run = False
                     elif event.key == pygame.K_SPACE:
                         game.open_random_puzzle()
+                    elif event.key == pygame.K_r:
+                        game.open_puzzle(game.get_puzzle_id())
             
             # draw game assets
             game.draw_all()
