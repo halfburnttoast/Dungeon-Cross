@@ -94,7 +94,7 @@ def place_chest(map_list: list):
                 if cell_check == False:
                     break
             if cell_check == False:
-                break
+                continue
 
             # place chest in a random position in the 3x3 grid
             cx = random.randint(0, 2)
@@ -116,16 +116,20 @@ def convert_map(map_list: list) -> list:
     return _map
 
 def main():
+    print("Building maps", end='',flush=True)
     with open("mapcodes.txt", 'r') as f:
         lines = f.read().splitlines()
     f.close()
 
     out_list = []
-    for line in lines:
+    for i, line in enumerate(lines):
         out_list.append(convert_map(line))
-    with open("out.json", "w") as f:
+        if i % 1000 == 0:
+            print('.', end='', flush=True)
+    with open("puzzles.json", "w") as f:
         json.dump(out_list, f)
     f.close()
+    print("Done.")
 
 if __name__ == '__main__':
     main()

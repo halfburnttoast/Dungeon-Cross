@@ -6,10 +6,10 @@ import json
 import time
 import pygame
 import random
-import music_handler
 from enum import Enum
 
 # local includes
+import music_handler
 from map_object_enum import MapObject
 
 VERSION = "v0.11.1"

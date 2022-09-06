@@ -18,3 +18,5 @@ ve-build:
 	deactivate
 ve-delete:
 	rm -rf dungeon_cross_build
+build-maps:
+	python3 map_convert.py
