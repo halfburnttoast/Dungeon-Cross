@@ -1,4 +1,3 @@
-from lib2to3 import pygram
 import os
 import random
 from pygame import mixer
@@ -19,16 +18,17 @@ class MusicHandler:
     def shuffle(self) -> None:
         random.shuffle(self._playlist)
     def play_music_all(self):
-        if not mixer.get_init() is None:
-            mixer.music.load(self._music_path + self._playlist[0])
-            self._playlist.pop(0)
-            for i in self._playlist:
-                try:
-                    mixer.music.queue(os.path.join(self._music_path + i))
-                except pygame_error as e:
-                    print("Couldn't open audio output device.")
-                    print(e)
-            mixer.music.play()
+        if len(self._playlist) > 0:
+            if not mixer.get_init() is None:
+                mixer.music.load(self._music_path + self._playlist[0])
+                self._playlist.pop(0)
+                for i in self._playlist:
+                    try:
+                        mixer.music.queue(os.path.join(self._music_path + i))
+                    except pygame_error as e:
+                        print("Couldn't open audio output device.")
+                        print(e)
+                mixer.music.play()
     def set_volume(self, volume: int = 100):
         vol = min(100, max(0, volume))
         mixer.music.set_volume(vol / 100)
