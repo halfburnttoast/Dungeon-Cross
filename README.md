@@ -3,5 +3,6 @@ A Python + Pygame stand-alone, reimplementation of Zachtronic's Dungeons and Dia
 Still under development, expect unusual behavior
 
 Credits:
-Zachtronics   - Original game design concepts.
-Shadowcluster - Puzzle frameworks
+* Zachtronics   - Original game design concepts.
+* Shadowcluster - Puzzle frameworks
+* DCSS          - Sprites of dragon and coins.
