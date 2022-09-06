@@ -4,11 +4,11 @@ Still under development, expect unusual behavior.
 Currently loaded with around 47,000 puzzles.
 
 Controls:
-  LMB - Place/remove walls
-  RMB - Place/remove marks
-  SpaceBar - Next puzzle
-  R - Reset puzzle
-  M - Mute music
+* LMB - Place/remove walls
+* RMB - Place/remove marks
+* SpaceBar - Next puzzle
+* R - Reset puzzle
+* M - Mute music
 
 To compile to executable, you'll need to have Python installed with the PATH option
 selected during install. Then you can just run make.bat on Windows.
