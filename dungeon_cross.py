@@ -5,7 +5,11 @@ import json
 import time
 import pygame
 import random
+import music_handler
 from enum import Enum
+
+# local includes
+from map_object_enum import MapObject
 
 VERSION = "v0.10.0"
 
@@ -27,13 +31,6 @@ class MouseAction(Enum):
     REMOVE_WALL = 3
     REMOVE_MARK = 4
     MARK        = 5
-
-class MapObject(Enum):
-    EMPTY = 0
-    WALL  = 1
-    ENEMY = 2
-    CHEST = 3
-    MARK  = 4
 
 class Board:
     def __init__(self, screen):
@@ -61,7 +58,7 @@ class Board:
         self.sprite_enemy = self._load_sprite(resource_path('sprite/enemy.png'))
         self.sprite_chest = self._load_sprite(resource_path('sprite/chest.png'))
         self.sprite_frame = self._load_sprite(resource_path('sprite/frame.png'))
-        self.sprite_mark  = self._load_sprite(resource_path('sprite/mark.png'))
+        self.sprite_mark  = self._load_sprite(resource_path('sprite/mark2.png'))
         self.sprite_win   = self._load_sprite(resource_path('sprite/win.png'), G_RESOLUTION[0], G_RESOLUTION[1])
         self.sprite_number = []
         for i in range(0, 9):
@@ -73,13 +70,14 @@ class Board:
             with open(resource_path(file_name), 'r') as f:
                 self.puzzle_book = json.load(f)
                 f.close()
+            print(f"{len(self.puzzle_book)} puzzles loaded.")
         except FileNotFoundError:
             print(f"Couldn't open file: {file_name}")
             sys.exit(1)
-        print(self.puzzle_book)
     
     def open_puzzle(self, num: int = 0):
         """Opens a puzzle by ID."""
+        print(f"Opening puzzle #{num}.")
         self.hint_x = [0] * 8
         self.hint_y = [0] * 8
         self.x_err  = []
@@ -279,6 +277,11 @@ class Board:
 
 def main():
     pygame.init()
+    music = music_handler.MusicHandler(resource_path('audio/music/'))
+    music.load_music_all()
+    music.shuffle()
+    music.set_volume(35)
+    music.play_music_all()
     screen = pygame.display.set_mode(G_RESOLUTION)
     clock = pygame.time.Clock()
     pygame.display.set_caption(f"Dungeon Cross - {VERSION}")
@@ -307,6 +310,8 @@ def main():
                         game.open_random_puzzle()
                     elif event.key == pygame.K_r:
                         game.open_puzzle(game.get_puzzle_id())
+                    elif event.key == pygame.K_m:
+                        music.stop_music()
             
             # draw game assets
             game.draw_all()
