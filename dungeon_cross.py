@@ -42,6 +42,8 @@ class Board:
         self.hint_y = [0] * 8
         self.x_err  = []
         self.y_err  = []
+        self.x_lim  = []
+        self.y_lim  = []
         self.mouse_action = MouseAction.NONE.value
         self.screen = screen
         self.check_board_state = False
@@ -52,6 +54,11 @@ class Board:
         self._err_overlay = pygame.Surface((TILE_SIZE, TILE_SIZE))
         self._err_overlay.fill((255, 0, 0))
         self._err_overlay.set_alpha(120)
+
+        # limit overlay
+        self._limit_overlay = pygame.Surface((TILE_SIZE, TILE_SIZE))
+        self._limit_overlay.fill((0, 0, 0))
+        self._limit_overlay.set_alpha(120)
 
         # load sprites
         self.sprite_wall  = self._load_sprite(resource_path('sprite/wall.png'))
@@ -97,6 +104,7 @@ class Board:
         if pid == self.last_puzzle_id:
             pid = (pid + 1) % len(self.puzzle_book)
         self.open_puzzle(pid)
+        self._check_for_errors()
 
     def draw_all(self):
         self._draw_frame()
@@ -106,6 +114,7 @@ class Board:
         self._draw_map_tiles(show_wall=False)
         self._draw_placed_objects()
         self._draw_errors()
+        self._draw_limit()
         if self.game_won:
             self.screen.blit(self.sprite_win, (0, 0))
     
@@ -202,12 +211,23 @@ class Board:
         self.x_err = [i for i, v in enumerate(x_sum) if v > self.hint_x[i]]
         self.y_err = [i for i, v in enumerate(y_sum) if v > self.hint_y[i]]
 
+        # get indexes of limits against hint frame
+        self.x_lim = [i for i, v in enumerate(x_sum) if v == self.hint_x[i]]
+        self.y_lim = [i for i, v in enumerate(y_sum) if v == self.hint_y[i]]
+
     def _draw_errors(self):
         """Draws a red overlay over the hint numbers based on the values in x_err and y_err"""
         for i in self.x_err:
             self.screen.blit(self._err_overlay, ((i + 1) * TILE_SIZE, 0))
         for i in self.y_err:
             self.screen.blit(self._err_overlay, (0, (i + 1) * TILE_SIZE))
+
+    def _draw_limit(self):
+        """Draws a red overlay over the hint numbers based on the values in x_err and y_err"""
+        for i in self.x_lim:
+            self.screen.blit(self._limit_overlay, ((i + 1) * TILE_SIZE, 0))
+        for i in self.y_lim:
+            self.screen.blit(self._limit_overlay, (0, (i + 1) * TILE_SIZE))
 
     def _strip_walls(self) -> list:
         """Removes walls from loaded puzzle. Used to generate the 'user board'."""
