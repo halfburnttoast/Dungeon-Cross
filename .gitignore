@@ -1,7 +1,6 @@
 dist/
 build/
 __pycache__/
-*.spec
 old_builds/
 audio/music/*.mp3
 audio/sfx/*.mp3

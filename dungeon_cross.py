@@ -89,6 +89,7 @@ class Board:
         self.check_board_state = False
         self.game_won = False
         self.last_puzzle_id = num
+        pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num}")
     
     def open_random_puzzle(self):
         """Opens a random puzzle. Will not select the same puzzle twice in a row."""
@@ -285,7 +286,6 @@ def main():
     music.play_music_all()
     screen = pygame.display.set_mode(G_RESOLUTION)
     clock = pygame.time.Clock()
-    pygame.display.set_caption(f"Dungeon Cross - {VERSION}")
     game = Board(screen)
     game.load_puzzle_book()
     game_run = True
