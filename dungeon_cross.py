@@ -12,7 +12,7 @@ from enum import Enum
 import music_handler
 from map_object_enum import MapObject
 
-VERSION = "v0.12.0"
+VERSION = "v0.13.0"
 
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
