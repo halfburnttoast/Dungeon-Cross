@@ -24,6 +24,11 @@ from pygame import error as pygame_error
 
 class MusicHandler:
     def __init__(self, music_path: str):
+        self._mixer_running = False
+        if mixer.get_init() != None:
+            self._mixer_running = True
+        else:
+            print("Failed to open mixer.")
         self._playlist: list = []
         self._volume: float = 0.5
         self._music_path = music_path
@@ -37,19 +42,22 @@ class MusicHandler:
     def shuffle(self) -> None:
         random.shuffle(self._playlist)
     def play_music_all(self):
-        if len(self._playlist) > 0:
-            if not mixer.get_init() is None:
-                mixer.music.load(self._music_path + self._playlist[0])
-                self._playlist.pop(0)
-                for i in self._playlist:
-                    try:
-                        mixer.music.queue(os.path.join(self._music_path + i))
-                    except pygame_error as e:
-                        print("Couldn't open audio output device.")
-                        print(e)
-                mixer.music.play()
+        if self._mixer_running:
+            if len(self._playlist) > 0:
+                if not mixer.get_init() is None:
+                    mixer.music.load(self._music_path + self._playlist[0])
+                    self._playlist.pop(0)
+                    for i in self._playlist:
+                        try:
+                            mixer.music.queue(os.path.join(self._music_path + i))
+                        except pygame_error as e:
+                            print("Couldn't open audio output device.")
+                            print(e)
+                    mixer.music.play()
     def set_volume(self, volume: int = 100):
-        vol = min(100, max(0, volume))
-        mixer.music.set_volume(vol / 100)
+        if self._mixer_running:
+            vol = min(100, max(0, volume))
+            mixer.music.set_volume(vol / 100)
     def stop_music(self):
-        mixer.music.stop()
+        if self._mixer_running:
+            mixer.music.stop()
