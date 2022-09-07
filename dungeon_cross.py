@@ -32,7 +32,7 @@ from enum import Enum
 import music_handler
 from map_object_enum import MapObject
 
-VERSION = "v0.13.0"
+VERSION = "v0.13.1"
 
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -93,7 +93,10 @@ class Board:
         self.sprite_win   = self._load_sprite(resource_path('sprite/win.png'), G_RESOLUTION[0], G_RESOLUTION[1])
         self.sprite_number = []
         for i in range(0, 9):
-            self.sprite_number.append(self._load_sprite(resource_path(f'sprite/{i}.png'), TILE_SIZE - self.font_offset, TILE_SIZE - self.font_offset))
+            self.sprite_number.append(self._load_sprite(resource_path(f'sprite/{i}.png'), 
+                                                        TILE_SIZE - self.font_offset, 
+                                                        TILE_SIZE - self.font_offset)
+                                    )
 
 
     def load_puzzle_book(self, file_name: str = "puzzles.json"):
@@ -149,8 +152,8 @@ class Board:
         """
 
         mx, my      = self._get_mouse_to_grid()
-        user_tile  = self.placed_walls[my][mx]
-        map_tile     = self.board_layout[my][mx]
+        user_tile   = self.placed_walls[my][mx]
+        map_tile    = self.board_layout[my][mx]
         mouse_press = pygame.mouse.get_pressed()
         click_lmb   = mouse_press[0]
         click_rmb   = mouse_press[2]
@@ -160,7 +163,7 @@ class Board:
             self.mouse_action = MouseAction.NONE.value
 
         # update mouse action if not already set
-        if not self.game_won:
+        if not self.game_won and mx >= 0 and my >= 0:
             if self.mouse_action == MouseAction.NONE.value:
                 if click_lmb:
                     if user_tile:
@@ -308,8 +311,8 @@ class Board:
         pos_x, pos_y = pygame.mouse.get_pos()
         pos_x = math.floor((pos_x / TILE_SIZE) - 1)
         pos_y = math.floor((pos_y / TILE_SIZE) - 1)
-        pos_x = max(min(8, pos_x), 0)
-        pos_y = max(min(8, pos_y), 0)
+        pos_x = max(min(8, pos_x), -1)
+        pos_y = max(min(8, pos_y), -1)
         return(pos_x, pos_y)
 
     def _draw_frame(self):
