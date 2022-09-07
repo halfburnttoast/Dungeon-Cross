@@ -1,23 +1,64 @@
-A Python + Pygame stand-alone, reimplementation of Zachtronic's Dungeons and Diagrams.
+# Dungeon Cross
+A Python + Pygame stand-alone, reimplementation of Zachtronic's Dungeons and Diagrams. I love Picross and Dungeons and Diagrams is an amazing twist on classic nonograms. I wanted to have a stand-alone version of this game to have open in the background while I do other things. Hence this project was born.
 
-Still under development, expect unusual behavior.
-Currently loaded with around 47,000 puzzles.
+If you like this game, please checkout the other amazing puzzle games by Zachtronics. 
 
-Controls:
-* LMB - Place/remove walls
-* RMB - Place/remove marks
-* SpaceBar - Next puzzle
-* R - Reset puzzle
-* M - Mute music
+------------
+**NOTE:** This program is still in alpha development stage, expect unusual behavior. User interface, gameplay mechanics, graphics, sound effects, music, and keybindings are all subject to change at any time without warning.
 
-To compile to executable, you'll need to have Python installed with the PATH option
-selected during install. Then you can just run make.bat on Windows.
+All the sprites, music, and sound effects listed in credits are, to the best of my understanding, licensed as Creative Commons.
 
-Credits:
+------------
+
+### Controls:
+    LMB - Place/remove walls
+    RMB - Place/remove marks
+    SpaceBar - Next puzzle
+    R - Reset puzzle
+    M - Mute music
+
+
+------------
+
+### Running
+To either run or compile Dungeon Cross, you'll need to have Python 3.7 (or newer) installed along with Pygame. If you've installed Python with the 'Add to path' option selected, you can run the following in a command prompt to install pygame:
+
+`$ pip3 install pygame`
+
+To run the program, you can then run this command from the main game directory:
+`$ python3 dungeon_cross.py`
+
+Alternatively, you can download the pre-compiled binaries listed under releases. 
+
+### Building
+Included with this repository is a Makefile for Linux and MacOS and a Batch file for Windows. To run either of these, you'll need to have Python 3.7 or newer installed IWITH the 'Add to path' option selected. From there, you can build the game to an binary file by doing the following:
+
+###### Windows
+Double click on `make.bat`. A command prompt window will appear. It will install the required libraries and build to the `dist/` folder.
+
+###### MacOS or Linux
+You will need to have the make utility installed. Open a command prompt in the main game folder and execute the following command:
+`$ make`
+It will install the required libraries and build to the `dist/` folder.
+
+
+
+------------
+
+
+### Credits:
+* HalfBurntToast - All programming in this project. 
 * Zachtronics                    - Original game design concepts.
 * Shadowcluster                  - Raw puzzle frameworks
-* DCSS                           - Sprites of dragon and coins.
-* Big Rigs: Over the Road Racing - Legendary win screen that I jpeg'd the heck out of
 
-![Screenshot at 2022-09-06 12-56-44](https://user-images.githubusercontent.com/10293645/188695933-a4a6edc0-c015-492c-bf01-0f2ee32f7765.png)
-![Screenshot at 2022-09-03 15-10-52](https://user-images.githubusercontent.com/10293645/188696660-f85b2e39-d79d-4177-801e-f585a1078a16.png)
+##### Sprites:
+* DCSS                           - All sprites except for the chest sprite.
+* PIPOYA                         - Chest sprite.
+* Big Rigs: Over the Road Racing - Legendary win screen that I jpeg'd the heck out of.
+
+##### Music:
+* Alexander Nakarada | https://www.serpentsoundstudios.com
+
+##### Sound Effects:
+* Kenney | https://www.kenney.nl
+

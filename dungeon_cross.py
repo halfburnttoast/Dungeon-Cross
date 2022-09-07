@@ -49,6 +49,8 @@ class Board:
         self.check_board_state = False
         self.game_won = False
         self.last_puzzle_id = -1
+        self.font_offset = 32
+        self.font_pos_offset = self.font_offset / 2
 
         # error overlay
         self._err_overlay = pygame.Surface((TILE_SIZE, TILE_SIZE))
@@ -61,16 +63,18 @@ class Board:
         self._limit_overlay.set_alpha(120)
 
         # load sprites
-        self.sprite_wall  = self._load_sprite(resource_path('sprite/wall.png'))
-        self.sprite_floor = self._load_sprite(resource_path('sprite/floor.png'))
+        self.sprite_wall  = self._load_sprite(resource_path('sprite/wall3.png'))
+        self.sprite_floor = self._load_sprite(resource_path('sprite/floor4.png'))
         self.sprite_enemy = self._load_sprite(resource_path('sprite/enemy.png'))
         self.sprite_chest = self._load_sprite(resource_path('sprite/chest.png'))
-        self.sprite_frame = self._load_sprite(resource_path('sprite/frame.png'))
-        self.sprite_mark  = self._load_sprite(resource_path('sprite/mark2.png'))
+        self.sprite_frame = self._load_sprite(resource_path('sprite/frame3.png'))
+        self.sprite_mark  = self._load_sprite(resource_path('sprite/mark4.png'))
+        self.sprite_book  = self._load_sprite(resource_path('sprite/book.png'))
         self.sprite_win   = self._load_sprite(resource_path('sprite/win.png'), G_RESOLUTION[0], G_RESOLUTION[1])
         self.sprite_number = []
         for i in range(0, 9):
-            self.sprite_number.append(self._load_sprite(resource_path(f'sprite/{i}.png')))
+            self.sprite_number.append(self._load_sprite(resource_path(f'sprite/{i}.png'), TILE_SIZE - self.font_offset, TILE_SIZE - self.font_offset))
+
 
     def load_puzzle_book(self, file_name: str = "puzzles.json"):
         """Loads a JSON file containing the puzzle data. Puzzles are stored as a list of lists."""
@@ -96,7 +100,7 @@ class Board:
         self.check_board_state = False
         self.game_won = False
         self.last_puzzle_id = num
-        pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num}")
+        pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num:05d}")
     
     def open_random_puzzle(self):
         """Opens a random puzzle. Will not select the same puzzle twice in a row."""
@@ -292,9 +296,12 @@ class Board:
         for i in range(1, 9):
             hint_x = self.sprite_number[self.hint_x[i - 1]]
             hint_y = self.sprite_number[self.hint_y[i - 1]]
-            self.screen.blit(hint_x, (i * TILE_SIZE, 0))
-            self.screen.blit(hint_y, (0, i * TILE_SIZE))
+            self.screen.blit(self.sprite_frame, (i * TILE_SIZE, 0))
+            self.screen.blit(self.sprite_frame, (0, i * TILE_SIZE))
+            self.screen.blit(hint_x, (i * TILE_SIZE + self.font_pos_offset, self.font_pos_offset))
+            self.screen.blit(hint_y, (self.font_pos_offset, i * TILE_SIZE + self.font_pos_offset))
         self.screen.blit(self.sprite_frame, (0, 0))
+        self.screen.blit(self.sprite_book, (0, 0))
 
 
 def main():
