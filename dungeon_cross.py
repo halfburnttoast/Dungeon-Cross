@@ -52,6 +52,7 @@ class MouseAction(Enum):
     REMOVE_WALL = 3
     REMOVE_MARK = 4
     MARK        = 5
+    MENU_ACTION = 6
 
 class Board:
     def __init__(self, screen):
@@ -97,6 +98,7 @@ class Board:
                                                         TILE_SIZE - self.font_offset, 
                                                         TILE_SIZE - self.font_offset)
                                     )
+        pygame.display.set_icon(self.sprite_book)
 
 
     def load_puzzle_book(self, file_name: str = "puzzles.json"):
@@ -163,42 +165,47 @@ class Board:
             self.mouse_action = MouseAction.NONE.value
 
         # update mouse action if not already set
-        if not self.game_won and mx >= 0 and my >= 0:
-            if self.mouse_action == MouseAction.NONE.value:
-                if click_lmb:
-                    if user_tile:
-                        self.mouse_action = MouseAction.REMOVE_WALL.value
-                    else:
-                        self.mouse_action = MouseAction.PLACE_WALL.value
-                elif click_rmb:
-                    if user_tile:
-                        self.mouse_action = MouseAction.REMOVE_MARK.value
-                    else:
-                        self.mouse_action = MouseAction.PLACE_MARK.value                    
+        if mx >= 0 and my >= 0:
+            if not self.game_won:
+                if self.mouse_action == MouseAction.NONE.value:
+                    if click_lmb:
+                        if user_tile:
+                            self.mouse_action = MouseAction.REMOVE_WALL.value
+                        else:
+                            self.mouse_action = MouseAction.PLACE_WALL.value
+                    elif click_rmb:
+                        if user_tile:
+                            self.mouse_action = MouseAction.REMOVE_MARK.value
+                        else:
+                            self.mouse_action = MouseAction.PLACE_MARK.value                    
 
-            # update user tiles based on mouse location and action
-            if self.mouse_action:
-                if map_tile in [MapObject.EMPTY.value, MapObject.WALL.value]:
-                    if self.mouse_action == MouseAction.PLACE_WALL.value:
-                        if user_tile == MapObject.EMPTY.value:
-                            self.placed_walls[my][mx] = MapObject.WALL.value
-                            self.check_board_state = True
-                    elif self.mouse_action == MouseAction.REMOVE_WALL.value:
-                        if user_tile == MapObject.WALL.value:
-                            self.placed_walls[my][mx] = MapObject.EMPTY.value
-                            self.check_board_state = True
-                    elif self.mouse_action == MouseAction.PLACE_MARK.value:
-                        if user_tile == MapObject.EMPTY.value:
-                            self.placed_walls[my][mx] = MapObject.MARK.value
-                    elif self.mouse_action == MouseAction.REMOVE_MARK.value:
-                         if user_tile == MapObject.MARK.value:
-                            self.placed_walls[my][mx] = MapObject.EMPTY.value                   
+                # update user tiles based on mouse location and action
+                if self.mouse_action:
+                    if map_tile in [MapObject.EMPTY.value, MapObject.WALL.value]:
+                        if self.mouse_action == MouseAction.PLACE_WALL.value:
+                            if user_tile == MapObject.EMPTY.value:
+                                self.placed_walls[my][mx] = MapObject.WALL.value
+                                self.check_board_state = True
+                        elif self.mouse_action == MouseAction.REMOVE_WALL.value:
+                            if user_tile == MapObject.WALL.value:
+                                self.placed_walls[my][mx] = MapObject.EMPTY.value
+                                self.check_board_state = True
+                        elif self.mouse_action == MouseAction.PLACE_MARK.value:
+                            if user_tile == MapObject.EMPTY.value:
+                                self.placed_walls[my][mx] = MapObject.MARK.value
+                        elif self.mouse_action == MouseAction.REMOVE_MARK.value:
+                            if user_tile == MapObject.MARK.value:
+                                self.placed_walls[my][mx] = MapObject.EMPTY.value                   
 
             # if a user wall has changed, check for errors/win condition
             if self.check_board_state:
                 self._check_for_errors()
                 self._check_win()
                 self.check_board_state = False
+        elif mx == -1 and my == -1:      # if user has clicked on book icon
+            if click_lmb and not self.mouse_action:
+                self.mouse_action = MouseAction.MENU_ACTION.value
+                print("TEST")
 
     def get_number_of_puzzles(self):
         """Returns total number of puzzles loaded."""
