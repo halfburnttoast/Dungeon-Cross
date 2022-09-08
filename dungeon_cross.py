@@ -32,14 +32,22 @@ from enum import Enum
 import music_handler
 from map_object_enum import MapObject
 
-VERSION = "v0.14.2"
+VERSION = "v0.14.3"
 
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 30
 
 def resource_path(relative_path):
-    """Used for looking up assets inside of compiled binaries."""
+    """
+    Used for looking up assets inside of compiled binaries. If you want to
+    add your own custom assets AND compile the program as a stand-alone 
+    executable, you'll have to wrap your asset lookup call in this function.
+
+    Note, that if you add a new directory of assets, you'll need to update the
+    .spec file's added_files list to include that directory for compiling. 
+    """
+
     try:
         base_path = sys._MEIPASS
     except Exception:
@@ -47,6 +55,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 class MouseAction(Enum):
+    """Mouse action ENUM"""
     NONE        = 0
     PLACE_WALL  = 1
     PLACE_MARK  = 2
@@ -55,7 +64,7 @@ class MouseAction(Enum):
     MARK        = 5
     MENU_ACTION = 6
 
-class Board:
+class DungeonCross:
     def __init__(self, screen):
         self.board_layout = []
         self.puzzle_book  = []
@@ -67,12 +76,12 @@ class Board:
         self.x_lim  = []
         self.y_lim  = []
         self.mouse_action = MouseAction.NONE.value
-        self.screen = screen
-        self.check_board_state = False
+        self._screen = screen
+        self._check_board_state = False
         self.game_won = False
         self.last_puzzle_id = -1
-        self.font_offset = 32
-        self.font_pos_offset = self.font_offset / 2
+        self._font_offset = 32
+        self._font_pos_offset = self._font_offset / 2
 
         # error overlay
         self._err_overlay = pygame.Surface((TILE_SIZE, TILE_SIZE))
@@ -85,31 +94,24 @@ class Board:
         self._limit_overlay.set_alpha(120)
 
         # load sprites
-        self.sprite_wall  = self._load_sprite(resource_path('sprite/wall3.png'))
-        self.sprite_floor = self._load_sprite(resource_path('sprite/floor4.png'))
-        self.sprite_enemy = self._load_sprite(resource_path('sprite/enemy.png'))
-        self.sprite_chest = self._load_sprite(resource_path('sprite/chest.png'))
-        self.sprite_frame = self._load_sprite(resource_path('sprite/frame3.png'))
-        self.sprite_mark  = self._load_sprite(resource_path('sprite/mark4.png'))
-        self.sprite_book  = self._load_sprite(resource_path('sprite/book.png'))
-        self.sprite_win   = self._load_sprite(resource_path('sprite/win.png'), G_RESOLUTION[0], G_RESOLUTION[1])
+        self.sprite_wall  = self._load_sprite('sprite/wall3.png')
+        self.sprite_floor = self._load_sprite('sprite/floor4.png')
+        self.sprite_enemy = self._load_sprite('sprite/enemy.png')
+        self.sprite_chest = self._load_sprite('sprite/chest.png')
+        self.sprite_frame = self._load_sprite('sprite/frame3.png')
+        self.sprite_mark  = self._load_sprite('sprite/mark4.png')
+        self.sprite_book  = self._load_sprite('sprite/book.png')
+        self.sprite_win   = self._load_sprite('sprite/win.png'), G_RESOLUTION[0], G_RESOLUTION[1]
         self.sprite_number = []
         for i in range(0, 9):
-            self.sprite_number.append(self._load_sprite(resource_path(f'sprite/{i}.png'), 
-                                                        TILE_SIZE - self.font_offset, 
-                                                        TILE_SIZE - self.font_offset)
-                                    )
+            self.sprite_number.append(self._load_sprite(f"sprite/{i}.png", TILE_SIZE - self._font_offset, TILE_SIZE - self._font_offset))
         pygame.display.set_icon(self.sprite_book)
 
         # sound effects
-        self.sound_win = pygame.mixer.Sound(resource_path('audio/sfx/level_win.mp3'))
-        self.sound_wall = pygame.mixer.Sound(resource_path('audio/sfx/place_wall.mp3'))
-        self.sound_mark = pygame.mixer.Sound(resource_path('audio/sfx/place_mark.mp3'))
-        self.sound_open = pygame.mixer.Sound(resource_path('audio/sfx/level_open.mp3'))
-        self.sound_win.set_volume(0.6)
-        self.sound_wall.set_volume(0.6)
-        self.sound_mark.set_volume(0.6)
-        self.sound_open.set_volume(0.6)
+        self.sound_win = self._load_sfx('audio/sfx/level_win.mp3')
+        self.sound_wall = self._load_sfx('audio/sfx/place_wall.mp3')
+        self.sound_mark = self._load_sfx('audio/sfx/place_mark.mp3')
+        self.sound_open = self._load_sfx('audio/sfx/level_open.mp3')
 
 
     def load_puzzle_book(self, file_name: str = "puzzles.json"):
@@ -133,7 +135,7 @@ class Board:
         self.board_layout = self.puzzle_book[num]
         self._calc_hints()
         self.placed_walls = self._strip_walls()
-        self.check_board_state = False
+        self._check_board_state = False
         self.game_won = False
         self.last_puzzle_id = num
         pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num:05d}")
@@ -151,13 +153,13 @@ class Board:
         self._draw_frame()
         for y in range(1, 9):
             for x in range(1, 9):
-                self.screen.blit(self.sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
+                self._screen.blit(self.sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
         self._draw_map_tiles(show_wall=False)
         self._draw_placed_objects()
         self._draw_errors()
         self._draw_limit()
         if self.game_won:
-            self.screen.blit(self.sprite_win, (0, 0))
+            self._screen.blit(self.sprite_win, (0, 0))
     
     def handle_mouse(self):
         """
@@ -197,12 +199,12 @@ class Board:
                         if self.mouse_action == MouseAction.PLACE_WALL.value:
                             if user_tile == MapObject.EMPTY.value:
                                 self.placed_walls[my][mx] = MapObject.WALL.value
-                                self.check_board_state = True
+                                self._check_board_state = True
                                 self._play_sfx(self.sound_wall)
                         elif self.mouse_action == MouseAction.REMOVE_WALL.value:
                             if user_tile == MapObject.WALL.value:
                                 self.placed_walls[my][mx] = MapObject.EMPTY.value
-                                self.check_board_state = True
+                                self._check_board_state = True
                                 self._play_sfx(self.sound_wall)
                         elif self.mouse_action == MouseAction.PLACE_MARK.value:
                             if user_tile == MapObject.EMPTY.value:
@@ -214,10 +216,10 @@ class Board:
                                 self._play_sfx(self.sound_mark) 
 
             # if a user wall has changed, check for errors/win condition
-            if self.check_board_state:
+            if self._check_board_state:
                 self._check_for_errors()
                 self._check_win()
-                self.check_board_state = False
+                self._check_board_state = False
         elif mx == -1 and my == -1:      # if user has clicked on book icon
             if click_lmb and not self.mouse_action:
                 self.mouse_action = MouseAction.MENU_ACTION.value
@@ -269,16 +271,16 @@ class Board:
     def _draw_errors(self):
         """Draws a red overlay over the hint numbers based on the values in x_err and y_err"""
         for i in self.x_err:
-            self.screen.blit(self._err_overlay, ((i + 1) * TILE_SIZE, 0))
+            self._screen.blit(self._err_overlay, ((i + 1) * TILE_SIZE, 0))
         for i in self.y_err:
-            self.screen.blit(self._err_overlay, (0, (i + 1) * TILE_SIZE))
+            self._screen.blit(self._err_overlay, (0, (i + 1) * TILE_SIZE))
 
     def _draw_limit(self):
         """Draws a red overlay over the hint numbers based on the values in x_err and y_err"""
         for i in self.x_lim:
-            self.screen.blit(self._limit_overlay, ((i + 1) * TILE_SIZE, 0))
+            self._screen.blit(self._limit_overlay, ((i + 1) * TILE_SIZE, 0))
         for i in self.y_lim:
-            self.screen.blit(self._limit_overlay, (0, (i + 1) * TILE_SIZE))
+            self._screen.blit(self._limit_overlay, (0, (i + 1) * TILE_SIZE))
 
     def _strip_walls(self) -> list:
         """Removes walls from loaded puzzle. Used to generate the 'user board'."""
@@ -307,7 +309,7 @@ class Board:
     def _draw_sprite(self, sprite: pygame.image, grid_pos: tuple):
         pos_x = (grid_pos[0] + 1) * TILE_SIZE
         pos_y = (grid_pos[1] + 1) * TILE_SIZE
-        self.screen.blit(sprite, (pos_x, pos_y))
+        self._screen.blit(sprite, (pos_x, pos_y))
 
     def _draw_placed_objects(self):
         for y, row in enumerate(self.placed_walls):
@@ -343,12 +345,12 @@ class Board:
         for i in range(1, 9):
             hint_x = self.sprite_number[self.hint_x[i - 1]]
             hint_y = self.sprite_number[self.hint_y[i - 1]]
-            self.screen.blit(self.sprite_frame, (i * TILE_SIZE, 0))
-            self.screen.blit(self.sprite_frame, (0, i * TILE_SIZE))
-            self.screen.blit(hint_x, (i * TILE_SIZE + self.font_pos_offset, self.font_pos_offset))
-            self.screen.blit(hint_y, (self.font_pos_offset, i * TILE_SIZE + self.font_pos_offset))
-        self.screen.blit(self.sprite_frame, (0, 0))
-        self.screen.blit(self.sprite_book, (0, 0))
+            self._screen.blit(self.sprite_frame, (i * TILE_SIZE, 0))
+            self._screen.blit(self.sprite_frame, (0, i * TILE_SIZE))
+            self._screen.blit(hint_x, (i * TILE_SIZE + self._font_pos_offset, self._font_pos_offset))
+            self._screen.blit(hint_y, (self._font_pos_offset, i * TILE_SIZE + self._font_pos_offset))
+        self._screen.blit(self.sprite_frame, (0, 0))
+        self._screen.blit(self.sprite_book, (0, 0))
     
     def _play_sfx(self, sound_effect: pygame.mixer.Sound) -> None:
         """Wrap sfx calls in a try/except block."""
@@ -357,21 +359,37 @@ class Board:
         except pygame.error as e:
             print(f"Could not play sound: {sound_effect}")
             print(e)
+    
+    def _load_sfx(self, sound_effect_path: str, volume: float = 0.6) -> pygame.mixer.Sound:
+        snd = pygame.mixer.Sound(resource_path(sound_effect_path))
+        snd.set_volume(0.6)
+        return snd
 
 
 def main():
+
+    # init pygame
     pygame.init()
+
+    # create music handler object, load music, and start playback
     music = music_handler.MusicHandler(resource_path('audio/music/'))
     music.load_music_all()
     music.shuffle()
     music.set_volume(35)
     music.play_music_all()
+
+    # create display window
     screen = pygame.display.set_mode(G_RESOLUTION)
+
+    # internal timer for FPS regulation
     clock = pygame.time.Clock()
-    game = Board(screen)
+
+    # create game and load levels
+    game = DungeonCross(screen)
     game.load_puzzle_book()
     game_run = True
 
+    # main loop
     while game_run:
         game.open_random_puzzle()
         #game.open_puzzle(10)
