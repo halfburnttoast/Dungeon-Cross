@@ -33,7 +33,7 @@ import sound_handler
 from map_object_enum import MapObject
 from resource_path import resource_path
 
-VERSION = "v0.14.5"
+VERSION = "v0.14.6"
 
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -89,7 +89,7 @@ class DungeonCross:
         self.sprite_frame = self._load_sprite('sprite/frame3.png')
         self.sprite_mark  = self._load_sprite('sprite/mark4.png')
         self.sprite_book  = self._load_sprite('sprite/book.png')
-        self.sprite_win   = self._load_sprite('sprite/win.png'), G_RESOLUTION[0], G_RESOLUTION[1]
+        self.sprite_win   = self._load_sprite('sprite/win.png', G_RESOLUTION[0], G_RESOLUTION[1])
         self.sprite_number = []
         for i in range(0, 9):
             self.sprite_number.append(self._load_sprite(f"sprite/{i}.png", TILE_SIZE - self._font_offset, TILE_SIZE - self._font_offset))
