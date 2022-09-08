@@ -32,13 +32,14 @@ from enum import Enum
 import music_handler
 from map_object_enum import MapObject
 
-VERSION = "v0.14.0"
+VERSION = "v0.14.1"
 
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 30
 
 def resource_path(relative_path):
+    """Used for looking up assets inside of compiled binaries."""
     try:
         base_path = sys._MEIPASS
     except Exception:
@@ -101,12 +102,14 @@ class Board:
         pygame.display.set_icon(self.sprite_book)
 
         # sound effects
-        self.sound_win = pygame.mixer.Sound('audio/sfx/level_win.mp3')
-        self.sound_wall = pygame.mixer.Sound('audio/sfx/place_wall.mp3')
-        self.sound_mark = pygame.mixer.Sound('audio/sfx/place_mark.mp3')
+        self.sound_win = pygame.mixer.Sound(resource_path('audio/sfx/level_win.mp3'))
+        self.sound_wall = pygame.mixer.Sound(resource_path('audio/sfx/place_wall.mp3'))
+        self.sound_mark = pygame.mixer.Sound(resource_path('audio/sfx/place_mark.mp3'))
+        self.sound_open = pygame.mixer.Sound(resource_path('audio/sfx/level_open.mp3'))
         self.sound_win.set_volume(0.6)
         self.sound_wall.set_volume(0.6)
         self.sound_mark.set_volume(0.6)
+        self.sound_open.set_volume(0.6)
 
 
     def load_puzzle_book(self, file_name: str = "puzzles.json"):
@@ -122,7 +125,7 @@ class Board:
     
     def open_puzzle(self, num: int = 0):
         """Opens a puzzle by ID."""
-        print(f"Opening puzzle #{num}.")
+        print(f"Opening puzzle #{num:05d}.")
         self.hint_x = [0] * 8
         self.hint_y = [0] * 8
         self.x_err  = []
@@ -134,6 +137,8 @@ class Board:
         self.game_won = False
         self.last_puzzle_id = num
         pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num:05d}")
+        self.sound_open.play()
+        self._check_for_errors()
     
     def open_random_puzzle(self):
         """Opens a random puzzle. Will not select the same puzzle twice in a row."""
@@ -141,7 +146,6 @@ class Board:
         if pid == self.last_puzzle_id:
             pid = (pid + 1) % len(self.puzzle_book)
         self.open_puzzle(pid)
-        self._check_for_errors()
 
     def draw_all(self):
         self._draw_frame()
@@ -362,6 +366,7 @@ def main():
 
     while game_run:
         game.open_random_puzzle()
+        #game.open_puzzle(10)
 
         while game_run and not game.game_won:
 
