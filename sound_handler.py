@@ -21,8 +21,9 @@ import os
 import random
 from pygame import mixer
 from pygame import error as pygame_error
+from resource_path import resource_path
 
-class MusicHandler:
+class SoundHandler:
     def __init__(self, music_path: str):
         self._mixer_running = False
         if mixer.get_init() != None:
@@ -32,6 +33,7 @@ class MusicHandler:
         self._playlist: list = []
         self._volume: float = 0.5
         self._music_path = music_path
+        self.muted = False
     def load_music_all(self):
         try:
             files = os.listdir(self._music_path)
@@ -61,3 +63,17 @@ class MusicHandler:
     def stop_music(self):
         if self._mixer_running:
             mixer.music.stop()
+
+    def load_sfx(self, sound_effect_path: str, volume: float = 0.6) -> mixer.Sound:
+        snd = mixer.Sound(resource_path(sound_effect_path))
+        snd.set_volume(0.6)
+        return snd
+
+    def play_sfx(self, sound_effect: mixer.Sound) -> None:
+        """Wrap sfx calls in a try/except block."""
+        if not self.muted and self._mixer_running:
+            try:
+                sound_effect.play()
+            except pygame_error as e:
+                print(f"Could not play sound: {sound_effect}")
+                print(e)

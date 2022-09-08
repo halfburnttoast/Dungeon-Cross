@@ -29,30 +29,17 @@ import random
 from enum import Enum
 
 # local includes
-import music_handler
+import sound_handler
 from map_object_enum import MapObject
+from resource_path import resource_path
 
-VERSION = "v0.14.3"
+VERSION = "v0.14.4"
 
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 30
 
-def resource_path(relative_path):
-    """
-    Used for looking up assets inside of compiled binaries. If you want to
-    add your own custom assets AND compile the program as a stand-alone 
-    executable, you'll have to wrap your asset lookup call in this function.
 
-    Note, that if you add a new directory of assets, you'll need to update the
-    .spec file's added_files list to include that directory for compiling. 
-    """
-
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
 
 class MouseAction(Enum):
     """Mouse action ENUM"""
@@ -65,7 +52,9 @@ class MouseAction(Enum):
     MENU_ACTION = 6
 
 class DungeonCross:
-    def __init__(self, screen):
+    def __init__(self, screen, sound):
+        self._screen: pygame.Surface = screen
+        self._sound: sound_handler.SoundHandler = sound
         self.board_layout = []
         self.puzzle_book  = []
         self.placed_walls = []
@@ -76,7 +65,6 @@ class DungeonCross:
         self.x_lim  = []
         self.y_lim  = []
         self.mouse_action = MouseAction.NONE.value
-        self._screen = screen
         self._check_board_state = False
         self.game_won = False
         self.last_puzzle_id = -1
@@ -108,10 +96,10 @@ class DungeonCross:
         pygame.display.set_icon(self.sprite_book)
 
         # sound effects
-        self.sound_win = self._load_sfx('audio/sfx/level_win.mp3')
-        self.sound_wall = self._load_sfx('audio/sfx/place_wall.mp3')
-        self.sound_mark = self._load_sfx('audio/sfx/place_mark.mp3')
-        self.sound_open = self._load_sfx('audio/sfx/level_open.mp3')
+        self.sound_win = self._sound.load_sfx('audio/sfx/level_win.mp3')
+        self.sound_wall = self._sound.load_sfx('audio/sfx/place_wall.mp3')
+        self.sound_mark = self._sound.load_sfx('audio/sfx/place_mark.mp3')
+        self.sound_open = self._sound.load_sfx('audio/sfx/level_open.mp3')
 
 
     def load_puzzle_book(self, file_name: str = "puzzles.json"):
@@ -139,7 +127,7 @@ class DungeonCross:
         self.game_won = False
         self.last_puzzle_id = num
         pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num:05d}")
-        self._play_sfx(self.sound_open)
+        self._sound.play_sfx(self.sound_open)
         self._check_for_errors()
     
     def open_random_puzzle(self):
@@ -200,20 +188,20 @@ class DungeonCross:
                             if user_tile == MapObject.EMPTY.value:
                                 self.placed_walls[my][mx] = MapObject.WALL.value
                                 self._check_board_state = True
-                                self._play_sfx(self.sound_wall)
+                                self._sound.play_sfx(self.sound_wall)
                         elif self.mouse_action == MouseAction.REMOVE_WALL.value:
                             if user_tile == MapObject.WALL.value:
                                 self.placed_walls[my][mx] = MapObject.EMPTY.value
                                 self._check_board_state = True
-                                self._play_sfx(self.sound_wall)
+                                self._sound.play_sfx(self.sound_wall)
                         elif self.mouse_action == MouseAction.PLACE_MARK.value:
                             if user_tile == MapObject.EMPTY.value:
                                 self.placed_walls[my][mx] = MapObject.MARK.value
-                                self._play_sfx(self.sound_mark)
+                                self._sound.play_sfx(self.sound_mark)
                         elif self.mouse_action == MouseAction.REMOVE_MARK.value:
                             if user_tile == MapObject.MARK.value:
                                 self.placed_walls[my][mx] = MapObject.EMPTY.value                   
-                                self._play_sfx(self.sound_mark) 
+                                self._sound.play_sfx(self.sound_mark) 
 
             # if a user wall has changed, check for errors/win condition
             if self._check_board_state:
@@ -237,7 +225,7 @@ class DungeonCross:
         """Checks to see if the user-modified board matches the puzzle book board."""
         user_board = self._strip_marks()
         if self.board_layout == user_board:
-            self._play_sfx(self.sound_win)
+            self._sound.play_sfx(self.sound_win)
             self.game_won = True
     
     def _check_for_errors(self):
@@ -351,19 +339,6 @@ class DungeonCross:
             self._screen.blit(hint_y, (self._font_pos_offset, i * TILE_SIZE + self._font_pos_offset))
         self._screen.blit(self.sprite_frame, (0, 0))
         self._screen.blit(self.sprite_book, (0, 0))
-    
-    def _play_sfx(self, sound_effect: pygame.mixer.Sound) -> None:
-        """Wrap sfx calls in a try/except block."""
-        try:
-            sound_effect.play()
-        except pygame.error as e:
-            print(f"Could not play sound: {sound_effect}")
-            print(e)
-    
-    def _load_sfx(self, sound_effect_path: str, volume: float = 0.6) -> pygame.mixer.Sound:
-        snd = pygame.mixer.Sound(resource_path(sound_effect_path))
-        snd.set_volume(0.6)
-        return snd
 
 
 def main():
@@ -372,11 +347,11 @@ def main():
     pygame.init()
 
     # create music handler object, load music, and start playback
-    music = music_handler.MusicHandler(resource_path('audio/music/'))
-    music.load_music_all()
-    music.shuffle()
-    music.set_volume(35)
-    music.play_music_all()
+    sound = sound_handler.SoundHandler(resource_path('audio/music/'))
+    sound.load_music_all()
+    sound.shuffle()
+    sound.set_volume(35)
+    sound.play_music_all()
 
     # create display window
     screen = pygame.display.set_mode(G_RESOLUTION)
@@ -385,7 +360,7 @@ def main():
     clock = pygame.time.Clock()
 
     # create game and load levels
-    game = DungeonCross(screen)
+    game = DungeonCross(screen, sound)
     game.load_puzzle_book()
     game_run = True
 
@@ -413,7 +388,8 @@ def main():
                     elif event.key == pygame.K_r:
                         game.open_puzzle(game.get_puzzle_id())
                     elif event.key == pygame.K_m:
-                        music.stop_music()
+                        sound.stop_music()
+                        sound.muted = True
             
             # draw game assets
             game.draw_all()
