@@ -28,6 +28,7 @@ import pygame
 import random
 import logging
 import log_system
+import pygame_menu
 from enum import Enum
 
 # local includes
@@ -59,6 +60,22 @@ class DungeonCross:
         # I/O Objects
         self._screen: pygame.Surface = screen
         self._sound: sound_handler.SoundHandler = sound
+        self._menu: pygame_menu.Menu = pygame_menu.Menu(
+            "Dungeon Cross", 400, 400,
+        )
+
+        # Build menu
+        self._menu.set_onclose(self._menu_close)
+        self._menu.add.button("Random Puzzle", action=self._menu_random_map)
+        self._menu.add.text_input('PID:', 
+            maxchar=5,
+            valid_chars=[*'0123456789'],
+            onchange=self._menu_update_pid
+        )
+        self._menu.add.button("Load Map", action=self._menu_open_map)
+        self._menu.add.button('Resume', action=self._menu_close)
+        self._menu.add.button('Quit', pygame_menu.events.EXIT)
+        self._menu_pid: int = 0
 
         # Game variables
         self.board_layout = []
@@ -78,7 +95,7 @@ class DungeonCross:
         # UI variables
         self._font_offset = 32
         self._font_pos_offset = self._font_offset / 2
-        self._menu_open = False
+        self._menu_is_open = False
 
         # error overlay
         self._err_overlay = pygame.Surface((TILE_SIZE, TILE_SIZE))
@@ -163,20 +180,20 @@ class DungeonCross:
             self._screen.blit(self._sprite_win, (0, 0))
 
     def update(self):
-        if not self._menu_open:
+        if not self._menu_is_open:
             self._game_handle_mouse()
             self._draw_game()
         else:
-            self._menu_handle_events()
-            #self._draw_menu()
+            self._menu.enable()
+            self._menu.mainloop(self._screen)
 
     def handle_io_event(self, event: pygame.event.Event) -> bool:
         """Returns false if ESCAPE key was pressed"""
-        if not self._menu_open:
+        if not self._menu_is_open:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     return False
-                if not self._menu_open:
+                if not self._menu_is_open:
                     if event.key == pygame.K_SPACE:
                         self.open_random_puzzle()
                     elif event.key == pygame.K_r:
@@ -191,11 +208,22 @@ class DungeonCross:
         else:
             # handle menu
             pass
-        
         return True
+    
+    def _menu_open_map(self):
+        self.open_puzzle(self._menu_pid)
+        self._menu_close()
+    
+    def _menu_random_map(self):
+        self.open_random_puzzle()
+        self._menu_close()
 
-    def _menu_handle_events(self):
-        pass
+    def _menu_update_pid(self, value):
+        self._menu_pid = int(value)
+
+    def _menu_close(self):
+        self._menu_is_open = False
+        self._menu.disable()
 
     def _game_handle_mouse(self, lm_event: bool = False, rm_event: bool = False):
         """
@@ -259,7 +287,7 @@ class DungeonCross:
         elif mx == -1 and my == -1:      # if user has clicked on book icon
             if click_lmb and not self._mouse_action:
                 self._mouse_action = MouseAction.MENU_ACTION.value
-                self._menu_open = True
+                self._menu_is_open = True
                 print("MENU OPEN")
 
     def get_number_of_puzzles(self):
