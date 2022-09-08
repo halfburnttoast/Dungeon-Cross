@@ -148,8 +148,8 @@ class DungeonCross:
         self._draw_limit()
         if self.game_won:
             self._screen.blit(self.sprite_win, (0, 0))
-    
-    def handle_mouse(self):
+
+    def handle_mouse(self, lm_event: bool = False, rm_event: bool = False):
         """
         Handles all mouse input/actions. If a user-placed wall is changed, it will automatically
         call the routines to check for a win condition or if an error is made. 
@@ -159,8 +159,8 @@ class DungeonCross:
         user_tile   = self.placed_walls[my][mx]
         map_tile    = self.board_layout[my][mx]
         mouse_press = pygame.mouse.get_pressed()
-        click_lmb   = mouse_press[0]
-        click_rmb   = mouse_press[2]
+        click_lmb   = mouse_press[0] or lm_event
+        click_rmb   = mouse_press[2] or rm_event
 
         # reset mouse action if no buttons are being pressed
         if not True in [click_lmb, click_rmb] and self.mouse_action != MouseAction.NONE.value:
@@ -390,9 +390,10 @@ def main():
             for event in events:
                 if event.type == pygame.QUIT:
                     game_run = False
-                if event.type == pygame.KEYDOWN:
+                elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         game_run = False
+                        break
                     elif event.key == pygame.K_SPACE:
                         game.open_random_puzzle()
                     elif event.key == pygame.K_r:
@@ -400,6 +401,10 @@ def main():
                     elif event.key == pygame.K_m:
                         sound.stop_music()
                         sound.muted = True
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    lm = event.button == 1
+                    rm = event.button == 3
+                    game.handle_mouse(lm_event=lm, rm_event=rm)
             
             # draw game assets
             game.draw_all()
