@@ -36,13 +36,11 @@ import sound_handler
 from map_object_enum import MapObject
 from resource_path import resource_path
 
-VERSION = "v0.15.0"
-
+VERSION = "v0.16.0"
+G_LOG_LEVEL = logging.INFO
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 30
-
-
 
 class MouseAction(Enum):
     """Mouse action ENUM"""
@@ -60,20 +58,29 @@ class DungeonCross:
         # I/O Objects
         self._screen: pygame.Surface = screen
         self._sound: sound_handler.SoundHandler = sound
+
+        # Menu
+        theme: pygame_menu.Theme = pygame_menu.themes.THEME_DARK.copy()
+        theme.background_color = (100, 100, 0)
         self._menu: pygame_menu.Menu = pygame_menu.Menu(
-            "Dungeon Cross", 400, 400,
+            "Dungeon Cross", 
+            400, 
+            400,
+            theme=theme
         )
 
         # Build menu
         self._menu.set_onclose(self._menu_close)
+        self._menu.add.button('Resume', action=self._menu_close)
         self._menu.add.button("Random Puzzle", action=self._menu_random_map)
         self._menu.add.text_input('PID:', 
             maxchar=5,
             valid_chars=[*'0123456789'],
-            onchange=self._menu_update_pid
+            onchange=self._menu_update_pid,
         )
-        self._menu.add.button("Load Map", action=self._menu_open_map)
-        self._menu.add.button('Resume', action=self._menu_close)
+        self._menu.add.button("Load Puzzle", action=self._menu_open_map)
+        self._menu.add.button("Mute", action=self._menu_mute)
+        self._menu.add.vertical_fill(10)
         self._menu.add.button('Quit', pygame_menu.events.EXIT)
         self._menu_pid: int = 0
 
@@ -184,8 +191,9 @@ class DungeonCross:
             self._game_handle_mouse()
             self._draw_game()
         else:
+            # do menu update here1
             self._menu.enable()
-            self._menu.mainloop(self._screen)
+            self._menu.mainloop(self._screen, bgfun=self._draw_game)
 
     def handle_io_event(self, event: pygame.event.Event) -> bool:
         """Returns false if ESCAPE key was pressed"""
@@ -206,7 +214,7 @@ class DungeonCross:
                 rm = event.button == 3
                 self._game_handle_mouse(lm_event=lm, rm_event=rm)
         else:
-            # handle menu
+            # handle menu events here
             pass
         return True
     
@@ -219,11 +227,18 @@ class DungeonCross:
         self._menu_close()
 
     def _menu_update_pid(self, value):
-        self._menu_pid = int(value)
+        try:
+            self._menu_pid = int(value)
+        except:
+            self._menu_pid = 0
 
     def _menu_close(self):
         self._menu_is_open = False
         self._menu.disable()
+    
+    def _menu_mute(self):
+        self._sound.stop_music()
+        self._sound.muted = True 
 
     def _game_handle_mouse(self, lm_event: bool = False, rm_event: bool = False):
         """
@@ -446,9 +461,9 @@ def main():
         if sys.platform == 'darwin':
             log_dir = os.path.expanduser('~/Library/Logs/')
             log_path = log_dir + log_file_name
-            logging.basicConfig(filename=log_path, level=logging.INFO, filemode='w', format=lfmt)
+            logging.basicConfig(filename=log_path, level=G_LOG_LEVEL, filemode='w', format=lfmt)
         else:
-            logging.basicConfig(filename=log_file_name, level=logging.INFO, filemode='w', format=lfmt)
+            logging.basicConfig(filename=log_file_name, level=G_LOG_LEVEL, filemode='w', format=lfmt)
     except OSError as e:
         logging.basicConfig(level=logging.INFO, format=lfmt)
         logging.error(e)
