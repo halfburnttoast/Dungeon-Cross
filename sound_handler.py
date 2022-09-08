@@ -65,9 +65,10 @@ class SoundHandler:
             mixer.music.stop()
 
     def load_sfx(self, sound_effect_path: str, volume: float = 0.6) -> mixer.Sound:
-        snd = mixer.Sound(resource_path(sound_effect_path))
-        snd.set_volume(0.6)
-        return snd
+        if not self.muted and self._mixer_running:        
+            snd = mixer.Sound(resource_path(sound_effect_path))
+            snd.set_volume(0.6)
+            return snd
 
     def play_sfx(self, sound_effect: mixer.Sound) -> None:
         """Wrap sfx calls in a try/except block."""
