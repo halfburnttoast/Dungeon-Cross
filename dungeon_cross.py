@@ -33,7 +33,7 @@ import sound_handler
 from map_object_enum import MapObject
 from resource_path import resource_path
 
-VERSION = "v0.14.4"
+VERSION = "v0.14.5"
 
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -340,6 +340,15 @@ class DungeonCross:
         self._screen.blit(self.sprite_frame, (0, 0))
         self._screen.blit(self.sprite_book, (0, 0))
 
+def show_splash(screen: pygame.Surface):
+    image = pygame.image.load(resource_path('sprite/splash.png'))
+    sxm = round(image.get_width() / 2)
+    sym = round(image.get_height() / 2)
+    pos_x = (G_RESOLUTION[0] / 2) - sxm
+    pos_y = (G_RESOLUTION[1] / 2) - sym
+    screen.fill(pygame.color.Color(100, 100, 0))
+    screen.blit(image, (pos_x, pos_y))
+    pygame.display.update()
 
 def main():
 
@@ -355,6 +364,7 @@ def main():
 
     # create display window
     screen = pygame.display.set_mode(G_RESOLUTION)
+    show_splash(screen)
 
     # internal timer for FPS regulation
     clock = pygame.time.Clock()
