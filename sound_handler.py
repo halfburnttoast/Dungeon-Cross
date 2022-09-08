@@ -19,6 +19,7 @@
 
 import os
 import random
+import logging
 from pygame import mixer
 from pygame import error as pygame_error
 from resource_path import resource_path
@@ -29,7 +30,7 @@ class SoundHandler:
         if mixer.get_init() != None:
             self._mixer_running = True
         else:
-            print("Failed to open mixer.")
+            logging.warn("Failed to open mixer.")
         self._playlist: list = []
         self._volume: float = 0.5
         self._music_path = music_path
@@ -39,8 +40,8 @@ class SoundHandler:
             files = os.listdir(self._music_path)
             self._playlist = [x for x in files if '.mp3' in x]
         except PermissionError as e:
-            print(f"Failed to open music directory {self._music_path}")
-            print(e)
+            logging.warn(f"Failed to open music directory {self._music_path}")
+            raise
     def shuffle(self) -> None:
         random.shuffle(self._playlist)
     def play_music_all(self):
@@ -53,8 +54,8 @@ class SoundHandler:
                         try:
                             mixer.music.queue(os.path.join(self._music_path + i))
                         except pygame_error as e:
-                            print("Couldn't open audio output device.")
-                            print(e)
+                            logging.warn("Couldn't open audio output device.")
+                            raise
                     mixer.music.play()
     def set_volume(self, volume: int = 100):
         if self._mixer_running:
@@ -63,12 +64,15 @@ class SoundHandler:
     def stop_music(self):
         if self._mixer_running:
             mixer.music.stop()
-
     def load_sfx(self, sound_effect_path: str, volume: float = 0.6) -> mixer.Sound:
         if not self.muted and self._mixer_running:        
-            snd = mixer.Sound(resource_path(sound_effect_path))
-            snd.set_volume(0.6)
-            return snd
+            try:
+                snd = mixer.Sound(resource_path(sound_effect_path))
+                snd.set_volume(0.6)
+                return snd
+            except pygame_error as e:
+                logging.warn(f"Failed to open: {sound_effect_path}")
+                raise
 
     def play_sfx(self, sound_effect: mixer.Sound) -> None:
         """Wrap sfx calls in a try/except block."""
@@ -76,5 +80,5 @@ class SoundHandler:
             try:
                 sound_effect.play()
             except pygame_error as e:
-                print(f"Could not play sound: {sound_effect}")
-                print(e)
+                logging.warn(f"Could not play sound: {sound_effect}")
+                raise

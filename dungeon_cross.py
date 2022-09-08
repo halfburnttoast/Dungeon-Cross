@@ -26,6 +26,8 @@ import json
 import time
 import pygame
 import random
+import logging
+import log_system
 from enum import Enum
 
 # local includes
@@ -53,8 +55,12 @@ class MouseAction(Enum):
 
 class DungeonCross:
     def __init__(self, screen, sound):
+
+        # I/O Objects
         self._screen: pygame.Surface = screen
         self._sound: sound_handler.SoundHandler = sound
+
+        # Game variables
         self.board_layout = []
         self.puzzle_book  = []
         self.placed_walls = []
@@ -64,10 +70,10 @@ class DungeonCross:
         self.y_err  = []
         self.x_lim  = []
         self.y_lim  = []
-        self.mouse_action = MouseAction.NONE.value
-        self._check_board_state = False
         self.game_won = False
         self.last_puzzle_id = -1
+        self._mouse_action: MouseAction = MouseAction.NONE.value
+        self._check_board_state = False
         self._font_offset = 32
         self._font_pos_offset = self._font_offset / 2
 
@@ -82,40 +88,44 @@ class DungeonCross:
         self._limit_overlay.set_alpha(120)
 
         # load sprites
-        self.sprite_wall  = self._load_sprite('sprite/wall3.png')
-        self.sprite_floor = self._load_sprite('sprite/floor4.png')
-        self.sprite_enemy = self._load_sprite('sprite/enemy.png')
-        self.sprite_chest = self._load_sprite('sprite/chest.png')
-        self.sprite_frame = self._load_sprite('sprite/frame3.png')
-        self.sprite_mark  = self._load_sprite('sprite/mark4.png')
-        self.sprite_book  = self._load_sprite('sprite/book.png')
-        self.sprite_win   = self._load_sprite('sprite/win.png', G_RESOLUTION[0], G_RESOLUTION[1])
-        self.sprite_number = []
+        self._sprite_wall  = self._load_sprite('sprite/wall3.png')
+        self._sprite_floor = self._load_sprite('sprite/floor4.png')
+        self._sprite_enemy = self._load_sprite('sprite/enemy.png')
+        self._sprite_chest = self._load_sprite('sprite/chest.png')
+        self._sprite_frame = self._load_sprite('sprite/frame3.png')
+        self._sprite_mark  = self._load_sprite('sprite/mark4.png')
+        self._sprite_book  = self._load_sprite('sprite/book.png')
+        self._sprite_win   = self._load_sprite('sprite/win.png', G_RESOLUTION[0], G_RESOLUTION[1])
+        self._sprite_number = []
         for i in range(0, 9):
-            self.sprite_number.append(self._load_sprite(f"sprite/{i}.png", TILE_SIZE - self._font_offset, TILE_SIZE - self._font_offset))
-        pygame.display.set_icon(self.sprite_book)
+            self._sprite_number.append(self._load_sprite(f"sprite/{i}.png", TILE_SIZE - self._font_offset, TILE_SIZE - self._font_offset))
+        pygame.display.set_icon(self._sprite_book)
 
         # sound effects
-        self.sound_win = self._sound.load_sfx('audio/sfx/level_win.mp3')
-        self.sound_wall = self._sound.load_sfx('audio/sfx/place_wall.mp3')
-        self.sound_mark = self._sound.load_sfx('audio/sfx/place_mark.mp3')
-        self.sound_open = self._sound.load_sfx('audio/sfx/level_open.mp3')
+        self._sound_win = self._sound.load_sfx('audio/sfx/level_win.mp3')
+        self._sound_wall = self._sound.load_sfx('audio/sfx/place_wall.mp3')
+        self._sound_mark = self._sound.load_sfx('audio/sfx/place_mark.mp3')
+        self._sound_open = self._sound.load_sfx('audio/sfx/level_open.mp3')
 
 
     def load_puzzle_book(self, file_name: str = "puzzles.json"):
         """Loads a JSON file containing the puzzle data. Puzzles are stored as a list of lists."""
+        logging.info(f"Opening puzzle book: {file_name}.")
         try:
             with open(resource_path(file_name), 'r') as f:
                 self.puzzle_book = json.load(f)
                 f.close()
-            print(f"{len(self.puzzle_book)} puzzles loaded.")
+            logging.info(f"{len(self.puzzle_book)} puzzles loaded.")
         except FileNotFoundError:
-            print(f"Couldn't open file: {file_name}")
-            sys.exit(1)
+            logging.warn(f"Couldn't open file: {file_name}")
+            raise
+        except json.JSONDecodeError:
+            logging.warn(f"Error reading file: {file_name}")
+            raise
     
     def open_puzzle(self, num: int = 0):
         """Opens a puzzle by ID."""
-        print(f"Opening puzzle #{num:05d}.")
+        logging.info(f"Opening puzzle #{num:05d}.")
         self.hint_x = [0] * 8
         self.hint_y = [0] * 8
         self.x_err  = []
@@ -127,7 +137,7 @@ class DungeonCross:
         self.game_won = False
         self.last_puzzle_id = num
         pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num:05d}")
-        self._sound.play_sfx(self.sound_open)
+        self._sound.play_sfx(self._sound_open)
         self._check_for_errors()
     
     def open_random_puzzle(self):
@@ -141,13 +151,13 @@ class DungeonCross:
         self._draw_frame()
         for y in range(1, 9):
             for x in range(1, 9):
-                self._screen.blit(self.sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
+                self._screen.blit(self._sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
         self._draw_map_tiles(show_wall=False)
         self._draw_placed_objects()
         self._draw_errors()
         self._draw_limit()
         if self.game_won:
-            self._screen.blit(self.sprite_win, (0, 0))
+            self._screen.blit(self._sprite_win, (0, 0))
 
     def handle_mouse(self, lm_event: bool = False, rm_event: bool = False):
         """
@@ -163,45 +173,45 @@ class DungeonCross:
         click_rmb   = mouse_press[2] or rm_event
 
         # reset mouse action if no buttons are being pressed
-        if not True in [click_lmb, click_rmb] and self.mouse_action != MouseAction.NONE.value:
-            self.mouse_action = MouseAction.NONE.value
+        if not True in [click_lmb, click_rmb] and self._mouse_action != MouseAction.NONE.value:
+            self._mouse_action = MouseAction.NONE.value
 
         # update mouse action if not already set
         if mx >= 0 and my >= 0:
             if not self.game_won:
-                if self.mouse_action == MouseAction.NONE.value:
+                if self._mouse_action == MouseAction.NONE.value:
                     if click_lmb:
                         if user_tile:
-                            self.mouse_action = MouseAction.REMOVE_WALL.value
+                            self._mouse_action = MouseAction.REMOVE_WALL.value
                         else:
-                            self.mouse_action = MouseAction.PLACE_WALL.value
+                            self._mouse_action = MouseAction.PLACE_WALL.value
                     elif click_rmb:
                         if user_tile:
-                            self.mouse_action = MouseAction.REMOVE_MARK.value
+                            self._mouse_action = MouseAction.REMOVE_MARK.value
                         else:
-                            self.mouse_action = MouseAction.PLACE_MARK.value                 
+                            self._mouse_action = MouseAction.PLACE_MARK.value                 
 
                 # update user tiles based on mouse location and action
-                if self.mouse_action:
+                if self._mouse_action:
                     if map_tile in [MapObject.EMPTY.value, MapObject.WALL.value]:
-                        if self.mouse_action == MouseAction.PLACE_WALL.value:
+                        if self._mouse_action == MouseAction.PLACE_WALL.value:
                             if user_tile == MapObject.EMPTY.value:
                                 self.placed_walls[my][mx] = MapObject.WALL.value
                                 self._check_board_state = True
-                                self._sound.play_sfx(self.sound_wall)
-                        elif self.mouse_action == MouseAction.REMOVE_WALL.value:
+                                self._sound.play_sfx(self._sound_wall)
+                        elif self._mouse_action == MouseAction.REMOVE_WALL.value:
                             if user_tile == MapObject.WALL.value:
                                 self.placed_walls[my][mx] = MapObject.EMPTY.value
                                 self._check_board_state = True
-                                self._sound.play_sfx(self.sound_wall)
-                        elif self.mouse_action == MouseAction.PLACE_MARK.value:
+                                self._sound.play_sfx(self._sound_wall)
+                        elif self._mouse_action == MouseAction.PLACE_MARK.value:
                             if user_tile == MapObject.EMPTY.value:
                                 self.placed_walls[my][mx] = MapObject.MARK.value
-                                self._sound.play_sfx(self.sound_mark)
-                        elif self.mouse_action == MouseAction.REMOVE_MARK.value:
+                                self._sound.play_sfx(self._sound_mark)
+                        elif self._mouse_action == MouseAction.REMOVE_MARK.value:
                             if user_tile == MapObject.MARK.value:
                                 self.placed_walls[my][mx] = MapObject.EMPTY.value                   
-                                self._sound.play_sfx(self.sound_mark) 
+                                self._sound.play_sfx(self._sound_mark) 
 
             # if a user wall has changed, check for errors/win condition
             if self._check_board_state:
@@ -209,9 +219,8 @@ class DungeonCross:
                 self._check_win()
                 self._check_board_state = False
         elif mx == -1 and my == -1:      # if user has clicked on book icon
-            if click_lmb and not self.mouse_action:
-                self.mouse_action = MouseAction.MENU_ACTION.value
-                print("TEST")
+            if click_lmb and not self._mouse_action:
+                self._mouse_action = MouseAction.MENU_ACTION.value
 
     def get_number_of_puzzles(self):
         """Returns total number of puzzles loaded."""
@@ -225,7 +234,7 @@ class DungeonCross:
         """Checks to see if the user-modified board matches the puzzle book board."""
         user_board = self._strip_marks()
         if self.board_layout == user_board:
-            self._sound.play_sfx(self.sound_win)
+            self._sound.play_sfx(self._sound_win)
             self.game_won = True
     
     def _check_for_errors(self):
@@ -303,23 +312,28 @@ class DungeonCross:
         for y, row in enumerate(self.placed_walls):
             for x, obj in enumerate(row):
                 if obj == MapObject.WALL.value:
-                    self._draw_sprite(self.sprite_wall, (x, y))
+                    self._draw_sprite(self._sprite_wall, (x, y))
                 elif obj == MapObject.MARK.value:
-                    self._draw_sprite(self.sprite_mark, (x, y))
+                    self._draw_sprite(self._sprite_mark, (x, y))
 
     def _draw_map_tiles(self, show_wall: bool = False):
         for y, row in enumerate(self.board_layout):
             for x, obj in enumerate(row):
                 if show_wall and obj == MapObject.WALL.value:
-                    self._draw_sprite(self.sprite_wall, (x, y))
+                    self._draw_sprite(self._sprite_wall, (x, y))
                 elif obj == MapObject.ENEMY.value:
-                    self._draw_sprite(self.sprite_enemy, (x, y))
+                    self._draw_sprite(self._sprite_enemy, (x, y))
                 elif obj == MapObject.CHEST.value:
-                    self._draw_sprite(self.sprite_chest, (x, y))
+                    self._draw_sprite(self._sprite_chest, (x, y))
 
     def _load_sprite(self, path: str, size_x: int = TILE_SIZE, size_y: int = TILE_SIZE) -> pygame.image:
-        image = pygame.image.load(resource_path(path))
-        return pygame.transform.scale(image, (size_x, size_x))
+        logging.debug(f"Loading sprite: {path}. Size ({size_x}, {size_y}")
+        try:
+            image = pygame.image.load(resource_path(path))
+            return pygame.transform.scale(image, (size_x, size_x))
+        except FileNotFoundError:
+            logging.critical(f"Could not open sprite: {path}")
+            raise
 
     def _get_mouse_to_grid(self) -> tuple:
         pos_x, pos_y = pygame.mouse.get_pos()
@@ -331,14 +345,14 @@ class DungeonCross:
 
     def _draw_frame(self):
         for i in range(1, 9):
-            hint_x = self.sprite_number[self.hint_x[i - 1]]
-            hint_y = self.sprite_number[self.hint_y[i - 1]]
-            self._screen.blit(self.sprite_frame, (i * TILE_SIZE, 0))
-            self._screen.blit(self.sprite_frame, (0, i * TILE_SIZE))
+            hint_x = self._sprite_number[self.hint_x[i - 1]]
+            hint_y = self._sprite_number[self.hint_y[i - 1]]
+            self._screen.blit(self._sprite_frame, (i * TILE_SIZE, 0))
+            self._screen.blit(self._sprite_frame, (0, i * TILE_SIZE))
             self._screen.blit(hint_x, (i * TILE_SIZE + self._font_pos_offset, self._font_pos_offset))
             self._screen.blit(hint_y, (self._font_pos_offset, i * TILE_SIZE + self._font_pos_offset))
-        self._screen.blit(self.sprite_frame, (0, 0))
-        self._screen.blit(self.sprite_book, (0, 0))
+        self._screen.blit(self._sprite_frame, (0, 0))
+        self._screen.blit(self._sprite_book, (0, 0))
 
 def show_splash(screen: pygame.Surface):
     image = pygame.image.load(resource_path('sprite/splash.png'))
@@ -350,7 +364,29 @@ def show_splash(screen: pygame.Surface):
     screen.blit(image, (pos_x, pos_y))
     pygame.display.update()
 
+
+
 def main():
+
+    # setup logging
+    lfmt = "%(levelname)s [%(funcName)s]: %(message)s"
+    log_file_name = 'dungeon_cross.log'
+    try:
+        # When compiled as .app file on Mac, sandboxing will have the logical working directory '/'
+        # meaning creating logfiles in the same directory will fail. We'll need to redirect the 
+        # log output to the standard logfile location for user apps.
+        if sys.platform == 'darwin':
+            log_dir = os.path.expanduser('~/Library/Logs/')
+            log_path = log_dir + log_file_name
+            logging.basicConfig(filename=log_path, level=logging.INFO, filemode='w', format=lfmt)
+        else:
+            logging.basicConfig(filename=log_file_name, level=logging.INFO, filemode='w', format=lfmt)
+    except OSError as e:
+        logging.basicConfig(level=logging.INFO, format=lfmt)
+        logging.error(e)
+    logging.info("PROGRAM START")
+    log_system.log_sys_info()
+    sys.excepthook = log_system.exception_handler_hook
 
     # init pygame
     pygame.init()
@@ -375,6 +411,7 @@ def main():
     game_run = True
 
     # main loop
+    logging.info("GAME START")
     while game_run:
         game.open_random_puzzle()
         #game.open_puzzle(10)

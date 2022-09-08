@@ -2,3 +2,4 @@ dist/
 build/
 __pycache__/
 old_builds/
+*.log
