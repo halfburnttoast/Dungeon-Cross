@@ -32,7 +32,7 @@ from enum import Enum
 import music_handler
 from map_object_enum import MapObject
 
-VERSION = "v0.14.1"
+VERSION = "v0.14.2"
 
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -58,7 +58,7 @@ class MouseAction(Enum):
 class Board:
     def __init__(self, screen):
         self.board_layout = []
-        self.puzzle_book = []
+        self.puzzle_book  = []
         self.placed_walls = []
         self.hint_x = [0] * 8
         self.hint_y = [0] * 8
@@ -137,7 +137,7 @@ class Board:
         self.game_won = False
         self.last_puzzle_id = num
         pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num:05d}")
-        self.sound_open.play()
+        self._play_sfx(self.sound_open)
         self._check_for_errors()
     
     def open_random_puzzle(self):
@@ -198,20 +198,20 @@ class Board:
                             if user_tile == MapObject.EMPTY.value:
                                 self.placed_walls[my][mx] = MapObject.WALL.value
                                 self.check_board_state = True
-                                self.sound_wall.play()
+                                self._play_sfx(self.sound_wall)
                         elif self.mouse_action == MouseAction.REMOVE_WALL.value:
                             if user_tile == MapObject.WALL.value:
                                 self.placed_walls[my][mx] = MapObject.EMPTY.value
                                 self.check_board_state = True
-                                self.sound_wall.play()
+                                self._play_sfx(self.sound_wall)
                         elif self.mouse_action == MouseAction.PLACE_MARK.value:
                             if user_tile == MapObject.EMPTY.value:
                                 self.placed_walls[my][mx] = MapObject.MARK.value
-                                self.sound_mark.play()   
+                                self._play_sfx(self.sound_mark)
                         elif self.mouse_action == MouseAction.REMOVE_MARK.value:
                             if user_tile == MapObject.MARK.value:
                                 self.placed_walls[my][mx] = MapObject.EMPTY.value                   
-                                self.sound_mark.play()  
+                                self._play_sfx(self.sound_mark) 
 
             # if a user wall has changed, check for errors/win condition
             if self.check_board_state:
@@ -235,7 +235,7 @@ class Board:
         """Checks to see if the user-modified board matches the puzzle book board."""
         user_board = self._strip_marks()
         if self.board_layout == user_board:
-            self.sound_win.play()
+            self._play_sfx(self.sound_win)
             self.game_won = True
     
     def _check_for_errors(self):
@@ -349,6 +349,14 @@ class Board:
             self.screen.blit(hint_y, (self.font_pos_offset, i * TILE_SIZE + self.font_pos_offset))
         self.screen.blit(self.sprite_frame, (0, 0))
         self.screen.blit(self.sprite_book, (0, 0))
+    
+    def _play_sfx(self, sound_effect: pygame.mixer.Sound) -> None:
+        """Wrap sfx calls in a try/except block."""
+        try:
+            sound_effect.play()
+        except pygame.error as e:
+            print(f"Could not play sound: {sound_effect}")
+            print(e)
 
 
 def main():
