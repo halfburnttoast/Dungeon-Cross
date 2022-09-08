@@ -74,8 +74,11 @@ class DungeonCross:
         self.last_puzzle_id = -1
         self._mouse_action: MouseAction = MouseAction.NONE.value
         self._check_board_state = False
+
+        # UI variables
         self._font_offset = 32
         self._font_pos_offset = self._font_offset / 2
+        self._menu_open = False
 
         # error overlay
         self._err_overlay = pygame.Surface((TILE_SIZE, TILE_SIZE))
@@ -147,7 +150,7 @@ class DungeonCross:
             pid = (pid + 1) % len(self.puzzle_book)
         self.open_puzzle(pid)
 
-    def draw_all(self):
+    def _draw_game(self):
         self._draw_frame()
         for y in range(1, 9):
             for x in range(1, 9):
@@ -159,7 +162,42 @@ class DungeonCross:
         if self.game_won:
             self._screen.blit(self._sprite_win, (0, 0))
 
-    def handle_mouse(self, lm_event: bool = False, rm_event: bool = False):
+    def update(self):
+        if not self._menu_open:
+            self._game_handle_mouse()
+            self._draw_game()
+        else:
+            self._menu_handle_events()
+            #self._draw_menu()
+
+    def handle_io_event(self, event: pygame.event.Event) -> bool:
+        """Returns false if ESCAPE key was pressed"""
+        if not self._menu_open:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return False
+                if not self._menu_open:
+                    if event.key == pygame.K_SPACE:
+                        self.open_random_puzzle()
+                    elif event.key == pygame.K_r:
+                        self.open_puzzle(self.get_puzzle_id())
+                    elif event.key == pygame.K_m:
+                        self.sound.stop_music()
+                        self.sound.muted = True      
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                lm = event.button == 1
+                rm = event.button == 3
+                self._game_handle_mouse(lm_event=lm, rm_event=rm)
+        else:
+            # handle menu
+            pass
+        
+        return True
+
+    def _menu_handle_events(self):
+        pass
+
+    def _game_handle_mouse(self, lm_event: bool = False, rm_event: bool = False):
         """
         Handles all mouse input/actions. If a user-placed wall is changed, it will automatically
         call the routines to check for a win condition or if an error is made. 
@@ -221,6 +259,8 @@ class DungeonCross:
         elif mx == -1 and my == -1:      # if user has clicked on book icon
             if click_lmb and not self._mouse_action:
                 self._mouse_action = MouseAction.MENU_ACTION.value
+                self._menu_open = True
+                print("MENU OPEN")
 
     def get_number_of_puzzles(self):
         """Returns total number of puzzles loaded."""
@@ -423,28 +463,15 @@ def main():
 
             # handle quit events
             events = pygame.event.get()
-            game.handle_mouse()
+            # game.handle_mouse()
             for event in events:
                 if event.type == pygame.QUIT:
                     game_run = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        game_run = False
-                        break
-                    elif event.key == pygame.K_SPACE:
-                        game.open_random_puzzle()
-                    elif event.key == pygame.K_r:
-                        game.open_puzzle(game.get_puzzle_id())
-                    elif event.key == pygame.K_m:
-                        sound.stop_music()
-                        sound.muted = True
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    lm = event.button == 1
-                    rm = event.button == 3
-                    game.handle_mouse(lm_event=lm, rm_event=rm)
-            
+                else:
+                    game_run = game.handle_io_event(event)
+
             # draw game assets
-            game.draw_all()
+            game.update()
 
             # update screen
             pygame.display.update()
