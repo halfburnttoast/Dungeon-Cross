@@ -1,0 +1,19 @@
+Credits:
+HalfBurntToast - All programming in this project.
+Zachtronics - Original game design concepts.
+Shadowcluster - Raw puzzle frameworks
+
+Sprites:
+DCSS - All sprites except for the chest sprite.
+PIPOYA - Chest sprite.
+Big Rigs: Over the Road Racing - Win Sprite
+
+Music:
+Alexander Nakarada | https://www.serpentsoundstudios.com
+
+Sound Effects:
+Kenney | https://www.kenney.nl
+
+Third-party libraries
+Pygame | https://github.com/pygame
+pygame_menu | https://github.com/ppizarror/pygame-menu

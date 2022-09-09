@@ -24,12 +24,12 @@ import sys
 import math
 import json
 import time
-from turtle import bgcolor
 import pygame
 import random
 import logging
 import log_system
 import pygame_menu
+import pygame_menu.locals
 from enum import Enum
 
 # local includes
@@ -61,39 +61,10 @@ class DungeonCross:
         self._screen: pygame.Surface = screen
         self._sound: sound_handler.SoundHandler = sound
 
-        # Menu
-        pygame_menu.widgets.MENUBAR_STYLE_UNDERLINE_TITLE
-        theme: pygame_menu.Theme = pygame_menu.themes.THEME_DARK.copy()
-        theme.background_color = THEME_COLOR
-        theme.widget_font_shadow = True
-        theme.widget_font_size = 20
-        theme.widget_padding = 10
-        self._menu: pygame_menu.Menu = pygame_menu.Menu(
-            "", 
-            400, 
-            500,
-            theme=theme
-        )
-
-        # Build menu
-        self._menu.set_onclose(self._menu_close)
-        self._menu.add.button('Resume', action=self._menu_close)
-        self._menu.add.button('Reset', action=self._menu_reset)
-        self._menu.add.button("Random Puzzle", action=self._menu_random_map)
-        self._menu.add.button("Mute", action=self._menu_mute)
-        self._menu.add.vertical_fill(2)
-        self._menu.add.text_input(
-            'Puzzle ID: ',
-            default='00000',
-            maxchar=5,
-            valid_chars=[*'0123456789'],
-            onchange=self._menu_update_pid,
-            onreturn=self._menu_open_map,
-            background_color = (70, 50, 0)
-        )
-        self._menu.add.button("Load Puzzle", action=self._menu_open_map)
-        self._menu.add.vertical_fill(2)
-        self._menu.add.button('Quit', pygame_menu.events.EXIT)
+        # Create Menus 
+        self._menu_theme = self._menu_build_theme()
+        self._menu_about = self._menu_build_about()
+        self._menu = self._menu_build_main()
         self._menu_pid: int = 0
 
         # Game variables
@@ -446,8 +417,57 @@ class DungeonCross:
             self._screen.blit(hint_y, (self._font_pos_offset, i * TILE_SIZE + self._font_pos_offset))
         self._screen.blit(self._sprite_frame, (0, 0))
         self._screen.blit(self._sprite_book, (0, 0))
+    
+    def _menu_build_theme(self) -> pygame_menu.Theme:
+        pygame_menu.widgets.MENUBAR_STYLE_UNDERLINE_TITLE
+        theme: pygame_menu.Theme = pygame_menu.themes.THEME_DARK.copy()
+        theme.background_color = THEME_COLOR
+        theme.widget_font_shadow = True
+        theme.widget_font_size = 20
+        theme.widget_padding = 10
+        return theme
+    
+    def _menu_build_main(self) -> pygame_menu.Menu:
+        menu: pygame_menu.Menu = pygame_menu.Menu(
+            "", 
+            400, 
+            500,
+            theme = self._menu_theme
+        )
+        menu.set_onclose(self._menu_close)
+        menu.add.button('Resume', action=self._menu_close)
+        menu.add.button('Reset', action=self._menu_reset)
+        menu.add.button("Random Puzzle", action=self._menu_random_map)
+        menu.add.button("Mute", action=self._menu_mute)
+        menu.add.vertical_fill(2)
+        menu.add.text_input(
+            'Puzzle ID: ',
+            default='00000',
+            maxchar=5,
+            valid_chars=[*'0123456789'],
+            onchange=self._menu_update_pid,
+            onreturn=self._menu_open_map,
+            background_color = (70, 50, 0)
+        )
+        menu.add.button("Load Puzzle", action=self._menu_open_map)
+        menu.add.vertical_fill(2)
+        menu.add.button("About", self._menu_about)
+        menu.add.button('Quit', pygame_menu.events.EXIT)
+        return menu
 
-
+    def _menu_build_about(self):
+        menu: pygame_menu.Menu = pygame_menu.Menu(
+            "About", 
+            700, 
+            600,
+            theme = self._menu_theme
+        )
+        with open("about.txt") as f:
+            lines = f.readlines()
+        f.close()
+        for line in lines:
+            menu.add.label(line.splitlines()[0], align=pygame_menu.locals.ALIGN_LEFT)
+        return menu
 
 def show_splash(screen: pygame.Surface):
     """Shows splash screen while waiting"""
