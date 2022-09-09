@@ -35,13 +35,10 @@ import sound_handler
 from map_object_enum import MapObject
 from resource_path import resource_path
 
-VERSION = "v0.15.0"
-
+VERSION = "v0.15.1"
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 30
-
-
 
 class MouseAction(Enum):
     """Mouse action ENUM"""
@@ -182,8 +179,8 @@ class DungeonCross:
                     elif event.key == pygame.K_r:
                         self.open_puzzle(self.get_puzzle_id())
                     elif event.key == pygame.K_m:
-                        self.sound.stop_music()
-                        self.sound.muted = True      
+                        self._sound.stop_music()
+                        self._sound.muted = True      
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 lm = event.button == 1
                 rm = event.button == 3
@@ -259,7 +256,7 @@ class DungeonCross:
         elif mx == -1 and my == -1:      # if user has clicked on book icon
             if click_lmb and not self._mouse_action:
                 self._mouse_action = MouseAction.MENU_ACTION.value
-                self._menu_open = True
+                #self._menu_open = True
                 print("MENU OPEN")
 
     def get_number_of_puzzles(self):
@@ -394,7 +391,9 @@ class DungeonCross:
         self._screen.blit(self._sprite_frame, (0, 0))
         self._screen.blit(self._sprite_book, (0, 0))
 
+
 def show_splash(screen: pygame.Surface):
+    """Shows splash/loading screen"""
     image = pygame.image.load(resource_path('sprite/splash.png'))
     sxm = round(image.get_width() / 2)
     sym = round(image.get_height() / 2)
@@ -403,7 +402,6 @@ def show_splash(screen: pygame.Surface):
     screen.fill(pygame.color.Color(100, 100, 0))
     screen.blit(image, (pos_x, pos_y))
     pygame.display.update()
-
 
 
 def main():
