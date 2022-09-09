@@ -399,7 +399,7 @@ def show_splash(screen: pygame.Surface):
     sym = round(image.get_height() / 2)
     pos_x = (G_RESOLUTION[0] / 2) - sxm
     pos_y = (G_RESOLUTION[1] / 2) - sym
-    screen.fill(pygame.color.Color(100, 100, 0))
+    screen.fill(pygame.color.Color(100, 70, 0))
     screen.blit(image, (pos_x, pos_y))
     pygame.display.update()
 
