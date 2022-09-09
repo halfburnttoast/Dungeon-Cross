@@ -24,10 +24,12 @@ import sys
 import math
 import json
 import time
+from turtle import bgcolor
 import pygame
 import random
 import logging
 import log_system
+import pygame_menu
 from enum import Enum
 
 # local includes
@@ -35,10 +37,12 @@ import sound_handler
 from map_object_enum import MapObject
 from resource_path import resource_path
 
-VERSION = "v0.15.1"
+VERSION = "v0.16.0"
+G_LOG_LEVEL = logging.INFO
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 30
+THEME_COLOR = (100, 70, 0)
 
 class MouseAction(Enum):
     """Mouse action ENUM"""
@@ -56,6 +60,41 @@ class DungeonCross:
         # I/O Objects
         self._screen: pygame.Surface = screen
         self._sound: sound_handler.SoundHandler = sound
+
+        # Menu
+        pygame_menu.widgets.MENUBAR_STYLE_UNDERLINE_TITLE
+        theme: pygame_menu.Theme = pygame_menu.themes.THEME_DARK.copy()
+        theme.background_color = THEME_COLOR
+        theme.widget_font_shadow = True
+        theme.widget_font_size = 20
+        theme.widget_padding = 10
+        self._menu: pygame_menu.Menu = pygame_menu.Menu(
+            "", 
+            400, 
+            500,
+            theme=theme
+        )
+
+        # Build menu
+        self._menu.set_onclose(self._menu_close)
+        self._menu.add.button('Resume', action=self._menu_close)
+        self._menu.add.button('Reset', action=self._menu_reset)
+        self._menu.add.button("Random Puzzle", action=self._menu_random_map)
+        self._menu.add.button("Mute", action=self._menu_mute)
+        self._menu.add.vertical_fill(2)
+        self._menu.add.text_input(
+            'Puzzle ID: ',
+            default='00000',
+            maxchar=5,
+            valid_chars=[*'0123456789'],
+            onchange=self._menu_update_pid,
+            onreturn=self._menu_open_map,
+            background_color = (70, 50, 0)
+        )
+        self._menu.add.button("Load Puzzle", action=self._menu_open_map)
+        self._menu.add.vertical_fill(2)
+        self._menu.add.button('Quit', pygame_menu.events.EXIT)
+        self._menu_pid: int = 0
 
         # Game variables
         self.board_layout = []
@@ -75,7 +114,7 @@ class DungeonCross:
         # UI variables
         self._font_offset = 32
         self._font_pos_offset = self._font_offset / 2
-        self._menu_open = False
+        self._menu_is_open = False
 
         # error overlay
         self._err_overlay = pygame.Surface((TILE_SIZE, TILE_SIZE))
@@ -147,33 +186,22 @@ class DungeonCross:
             pid = (pid + 1) % len(self.puzzle_book)
         self.open_puzzle(pid)
 
-    def _draw_game(self):
-        self._draw_frame()
-        for y in range(1, 9):
-            for x in range(1, 9):
-                self._screen.blit(self._sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
-        self._draw_map_tiles(show_wall=False)
-        self._draw_placed_objects()
-        self._draw_errors()
-        self._draw_limit()
-        if self.game_won:
-            self._screen.blit(self._sprite_win, (0, 0))
-
     def update(self):
-        if not self._menu_open:
+        if not self._menu_is_open:
             self._game_handle_mouse()
             self._draw_game()
         else:
-            self._menu_handle_events()
-            #self._draw_menu()
+            # do menu update here1
+            self._menu.enable()
+            self._menu.mainloop(self._screen, bgfun=self._draw_game)
 
     def handle_io_event(self, event: pygame.event.Event) -> bool:
         """Returns false if ESCAPE key was pressed"""
-        if not self._menu_open:
+        if not self._menu_is_open:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     return False
-                if not self._menu_open:
+                if not self._menu_is_open:
                     if event.key == pygame.K_SPACE:
                         self.open_random_puzzle()
                     elif event.key == pygame.K_r:
@@ -185,14 +213,42 @@ class DungeonCross:
                 lm = event.button == 1
                 rm = event.button == 3
                 self._game_handle_mouse(lm_event=lm, rm_event=rm)
-        else:
-            # handle menu
-            pass
-        
         return True
+    
+    ### Menu wrapper methods
+    def _menu_open_map(self, val = None):
+        self.open_puzzle(self._menu_pid)
+        self._menu_close()
+    def _menu_random_map(self):
+        self.open_random_puzzle()
+        self._menu_close()
+    def _menu_reset(self):
+        self.open_puzzle(self.get_puzzle_id())
+        self._menu_close()
+    def _menu_update_pid(self, value):
+        try:
+            self._menu_pid = int(value)
+        except:
+            self._menu_pid = 0
+    def _menu_close(self):
+        self._menu_is_open = False
+        self._menu.disable()
+    def _menu_mute(self):
+        self._sound.stop_music()
+        self._sound.muted = True 
 
-    def _menu_handle_events(self):
-        pass
+    ### Internal game methods
+    def _draw_game(self):
+        self._draw_frame()
+        for y in range(1, 9):
+            for x in range(1, 9):
+                self._screen.blit(self._sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
+        self._draw_map_tiles(show_wall=False)
+        self._draw_placed_objects()
+        self._draw_errors()
+        self._draw_limit()
+        if self.game_won:
+            self._screen.blit(self._sprite_win, (0, 0))
 
     def _game_handle_mouse(self, lm_event: bool = False, rm_event: bool = False):
         """
@@ -256,7 +312,7 @@ class DungeonCross:
         elif mx == -1 and my == -1:      # if user has clicked on book icon
             if click_lmb and not self._mouse_action:
                 self._mouse_action = MouseAction.MENU_ACTION.value
-                #self._menu_open = True
+                self._menu_is_open = True
                 print("MENU OPEN")
 
     def get_number_of_puzzles(self):
@@ -392,14 +448,15 @@ class DungeonCross:
         self._screen.blit(self._sprite_book, (0, 0))
 
 
+
 def show_splash(screen: pygame.Surface):
-    """Shows splash/loading screen"""
+    """Shows splash screen while waiting"""
     image = pygame.image.load(resource_path('sprite/splash.png'))
     sxm = round(image.get_width() / 2)
     sym = round(image.get_height() / 2)
     pos_x = (G_RESOLUTION[0] / 2) - sxm
     pos_y = (G_RESOLUTION[1] / 2) - sym
-    screen.fill(pygame.color.Color(100, 100, 0))
+    screen.fill(pygame.color.Color(THEME_COLOR))
     screen.blit(image, (pos_x, pos_y))
     pygame.display.update()
 
@@ -416,9 +473,9 @@ def main():
         if sys.platform == 'darwin':
             log_dir = os.path.expanduser('~/Library/Logs/')
             log_path = log_dir + log_file_name
-            logging.basicConfig(filename=log_path, level=logging.INFO, filemode='w', format=lfmt)
+            logging.basicConfig(filename=log_path, level=G_LOG_LEVEL, filemode='w', format=lfmt)
         else:
-            logging.basicConfig(filename=log_file_name, level=logging.INFO, filemode='w', format=lfmt)
+            logging.basicConfig(filename=log_file_name, level=G_LOG_LEVEL, filemode='w', format=lfmt)
     except OSError as e:
         logging.basicConfig(level=logging.INFO, format=lfmt)
         logging.error(e)
