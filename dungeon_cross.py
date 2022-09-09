@@ -80,6 +80,8 @@ class DungeonCross:
         self._menu.add.button('Resume', action=self._menu_close)
         self._menu.add.button('Reset', action=self._menu_reset)
         self._menu.add.button("Random Puzzle", action=self._menu_random_map)
+        self._menu.add.button("Mute", action=self._menu_mute)
+        self._menu.add.vertical_fill(2)
         self._menu.add.text_input(
             'Puzzle ID: ',
             default='00000',
@@ -90,8 +92,7 @@ class DungeonCross:
             background_color = (70, 50, 0)
         )
         self._menu.add.button("Load Puzzle", action=self._menu_open_map)
-        self._menu.add.button("Mute", action=self._menu_mute)
-        self._menu.add.vertical_fill(10)
+        self._menu.add.vertical_fill(2)
         self._menu.add.button('Quit', pygame_menu.events.EXIT)
         self._menu_pid: int = 0
 
@@ -185,18 +186,6 @@ class DungeonCross:
             pid = (pid + 1) % len(self.puzzle_book)
         self.open_puzzle(pid)
 
-    def _draw_game(self):
-        self._draw_frame()
-        for y in range(1, 9):
-            for x in range(1, 9):
-                self._screen.blit(self._sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
-        self._draw_map_tiles(show_wall=False)
-        self._draw_placed_objects()
-        self._draw_errors()
-        self._draw_limit()
-        if self.game_won:
-            self._screen.blit(self._sprite_win, (0, 0))
-
     def update(self):
         if not self._menu_is_open:
             self._game_handle_mouse()
@@ -224,39 +213,43 @@ class DungeonCross:
                 lm = event.button == 1
                 rm = event.button == 3
                 self._game_handle_mouse(lm_event=lm, rm_event=rm)
-        else:
-            # handle menu events here
-            pass
         return True
     
-    # Menu methods
+    ### Menu wrapper methods
     def _menu_open_map(self, val = None):
         self.open_puzzle(self._menu_pid)
         self._menu_close()
-    
     def _menu_random_map(self):
         self.open_random_puzzle()
         self._menu_close()
-    
     def _menu_reset(self):
         self.open_puzzle(self.get_puzzle_id())
         self._menu_close()
-
     def _menu_update_pid(self, value):
         try:
             self._menu_pid = int(value)
         except:
             self._menu_pid = 0
-
     def _menu_close(self):
         self._menu_is_open = False
         self._menu.disable()
-    
     def _menu_mute(self):
         self._sound.stop_music()
         self._sound.muted = True 
 
-    # game methods
+    ### Internal game methods
+    def _draw_game(self):
+        self._draw_frame()
+        for y in range(1, 9):
+            for x in range(1, 9):
+                self._screen.blit(self._sprite_floor, (x * TILE_SIZE, y * TILE_SIZE))
+        self._draw_map_tiles(show_wall=False)
+        self._draw_placed_objects()
+        self._draw_errors()
+        self._draw_limit()
+        if self.game_won:
+            self._screen.blit(self._sprite_win, (0, 0))
+
     def _game_handle_mouse(self, lm_event: bool = False, rm_event: bool = False):
         """
         Handles all mouse input/actions. If a user-placed wall is changed, it will automatically
@@ -454,7 +447,10 @@ class DungeonCross:
         self._screen.blit(self._sprite_frame, (0, 0))
         self._screen.blit(self._sprite_book, (0, 0))
 
+
+
 def show_splash(screen: pygame.Surface):
+    """Shows splash screen while waiting"""
     image = pygame.image.load(resource_path('sprite/splash.png'))
     sxm = round(image.get_width() / 2)
     sym = round(image.get_height() / 2)
