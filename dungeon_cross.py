@@ -24,6 +24,7 @@ import sys
 import math
 import json
 import time
+from turtle import bgcolor
 import pygame
 import random
 import logging
@@ -41,6 +42,7 @@ G_LOG_LEVEL = logging.INFO
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 30
+THEME_COLOR = (100, 70, 0)
 
 class MouseAction(Enum):
     """Mouse action ENUM"""
@@ -60,23 +62,32 @@ class DungeonCross:
         self._sound: sound_handler.SoundHandler = sound
 
         # Menu
+        pygame_menu.widgets.MENUBAR_STYLE_UNDERLINE_TITLE
         theme: pygame_menu.Theme = pygame_menu.themes.THEME_DARK.copy()
-        theme.background_color = (100, 100, 0)
+        theme.background_color = THEME_COLOR
+        theme.widget_font_shadow = True
+        theme.widget_font_size = 20
+        theme.widget_padding = 10
         self._menu: pygame_menu.Menu = pygame_menu.Menu(
-            "Dungeon Cross", 
+            "", 
             400, 
-            400,
+            500,
             theme=theme
         )
 
         # Build menu
         self._menu.set_onclose(self._menu_close)
         self._menu.add.button('Resume', action=self._menu_close)
+        self._menu.add.button('Reset', action=self._menu_reset)
         self._menu.add.button("Random Puzzle", action=self._menu_random_map)
-        self._menu.add.text_input('PID:', 
+        self._menu.add.text_input(
+            'Puzzle ID: ',
+            default='00000',
             maxchar=5,
             valid_chars=[*'0123456789'],
             onchange=self._menu_update_pid,
+            onreturn=self._menu_open_map,
+            background_color = (70, 50, 0)
         )
         self._menu.add.button("Load Puzzle", action=self._menu_open_map)
         self._menu.add.button("Mute", action=self._menu_mute)
@@ -218,12 +229,17 @@ class DungeonCross:
             pass
         return True
     
-    def _menu_open_map(self):
+    # Menu methods
+    def _menu_open_map(self, val = None):
         self.open_puzzle(self._menu_pid)
         self._menu_close()
     
     def _menu_random_map(self):
         self.open_random_puzzle()
+        self._menu_close()
+    
+    def _menu_reset(self):
+        self.open_puzzle(self.get_puzzle_id())
         self._menu_close()
 
     def _menu_update_pid(self, value):
@@ -240,6 +256,7 @@ class DungeonCross:
         self._sound.stop_music()
         self._sound.muted = True 
 
+    # game methods
     def _game_handle_mouse(self, lm_event: bool = False, rm_event: bool = False):
         """
         Handles all mouse input/actions. If a user-placed wall is changed, it will automatically
@@ -443,7 +460,7 @@ def show_splash(screen: pygame.Surface):
     sym = round(image.get_height() / 2)
     pos_x = (G_RESOLUTION[0] / 2) - sxm
     pos_y = (G_RESOLUTION[1] / 2) - sym
-    screen.fill(pygame.color.Color(100, 100, 0))
+    screen.fill(pygame.color.Color(THEME_COLOR))
     screen.blit(image, (pos_x, pos_y))
     pygame.display.update()
 
