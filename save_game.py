@@ -17,6 +17,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 
+import os
 import sys
 import json
 import logging
@@ -46,7 +47,7 @@ class SaveFile:
         file_path = ''
         if sys.platform == 'darwin' and hasattr(sys, "_MEIPASS"):
             file_dir = os.path.expanduser('~/Library/Application Support/')
-            file_path = log_dir + log_file_name
+            file_path = file_dir + file_name
         elif sys.platform in ['linux', 'win32', 'darwin']:
             file_path = file_name
         else:
