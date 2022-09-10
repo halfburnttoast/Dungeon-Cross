@@ -45,11 +45,18 @@ class SaveFile:
     def _get_save_path(self, file_name: str) -> str:
         """When compiled, MacOS needs to store the save file to a different location"""
         file_path = ''
-        if sys.platform == 'darwin' and hasattr(sys, "_MEIPASS"):
-            file_dir = os.path.expanduser('~/Library/Application Support/')
+        if hasattr(sys, "_MEIPASS"):
+            plat = sys.platform
+            file_dir: str = ''
+            if plat == 'darwin':
+                file_dir = os.path.expanduser('~/Library/Application Support/')
+            elif plat == 'win32':
+                file_dir = os.path.expanduser('~/APPDATA/LOCAL/')
+            elif plat == 'linux':
+                file_dir = os.path.expanduser('~/.config/')
+            else:
+                raise OSError(f"Unsupported platform: {sys.platform}")
             file_path = file_dir + file_name
-        elif sys.platform in ['linux', 'win32', 'darwin']:
-            file_path = file_name
         else:
-            raise OSError(f"Unsupported platform: {sys.platform}")
+            file_path = file_name
         return file_path
