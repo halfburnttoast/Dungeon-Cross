@@ -1,6 +1,11 @@
 * Add variety to enemies shown
 	* Either have them randomized per map or possibly have a set theme chosen per map
     * Possibly add animated enemies?
+
+
+
+
+[DONE]
 * Add menu opened by clicking on book sprite in top corner
 	* Add options for turning on and off music/sound effects
 	* Have a way to enter in a puzzle ID number
