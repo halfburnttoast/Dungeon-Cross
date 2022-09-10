@@ -4,9 +4,9 @@ A Python + Pygame stand-alone, reimplementation of Zachtronic's Dungeons and Dia
 If you like this game, please checkout the other amazing puzzle games by Zachtronics. 
 
 ------------
-**NOTE:** This program is still in alpha development stage, expect unusual behavior. User interface, gameplay mechanics, graphics, sound effects, music, and keybindings are all subject to change at any time without warning.
+**NOTE:** This program is still in the alpha development stage, expect unusual behavior. User interface, gameplay mechanics, graphics, sound effects, music, and keybindings are all subject to change at any time without warning.
 
-All the sprites, music, and sound effects listed in credits are, to the best of my understanding, licensed as Creative Commons.
+All the sprites, music, and sound effects listed in the credits are, to the best of my understanding, licensed as Creative Commons.
 
 ------------
 
@@ -23,7 +23,7 @@ All the sprites, music, and sound effects listed in credits are, to the best of 
 ### Running
 To either run or compile Dungeon Cross, you'll need to have Python 3.7 (or newer) installed along with Pygame. If you've installed Python with the 'Add to path' option selected, you can run the following in a command prompt to install pygame:
 
-`$ pip3 install pygame`
+`$ pip3 install pygame pygame_menu`
 
 To run the program, you can then run this command from the main game directory:
 `$ python3 dungeon_cross.py`
@@ -31,7 +31,7 @@ To run the program, you can then run this command from the main game directory:
 Alternatively, you can download the pre-compiled binaries listed under releases. 
 
 ### Building
-Included with this repository is a Makefile for Linux and MacOS and a Batch file for Windows. To run either of these, you'll need to have Python 3.7 or newer installed IWITH the 'Add to path' option selected. From there, you can build the game to an binary file by doing the following:
+Included with this repository is a Makefile for Linux and MacOS and a Batch file for Windows. To run either of these, you'll need to have Python 3.7 or newer installed WITH the 'Add to path' option selected. From there, you can build the game to an binary file by doing the following:
 
 ###### Windows
 Double click on `make.bat`. A command prompt window will appear. It will install the required libraries and build to the `dist/` folder.
@@ -61,6 +61,7 @@ It will install the required libraries and build to the `dist/` folder.
 
 ##### Sound Effects:
 * Kenney | https://www.kenney.nl
+* HalfBurntToast: win screen sound effect.
 
 ##### Third-party libraries
 * Pygame | https://github.com/pygame
