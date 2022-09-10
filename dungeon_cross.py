@@ -29,18 +29,18 @@ import pygame
 import random
 import logging
 import hashlib
-import log_system
 import pygame_menu
 import pygame_menu.locals
 from enum import Enum
 
 # local includes
+import log_system
 import sound_handler
 from map_object_enum import MapObject
 from resource_path import resource_path
 from save_game import SaveFile
 
-VERSION = "v0.19.1"
+VERSION = "v0.19.2"
 G_LOG_LEVEL = logging.DEBUG
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -64,6 +64,7 @@ class DungeonCross:
         self._screen: pygame.Surface = screen
         self._sound: sound_handler.SoundHandler = sound
         self._save_file = SaveFile("dungeon_cross.sav")
+        self._mute_always = False
 
         # Create Menus 
         self._menu_theme = self._menu_build_theme()
@@ -207,10 +208,14 @@ class DungeonCross:
             data = self._save_file.get_save_data()
             self._player_wins = data["WINS"]
             if data["VERSION"] == VERSION:
+                self._mute_always = data["MUTE_ALWAYS"]
+                if self._mute_always:
+                    self._sound.stop_music()
+                    self._sound.muted = True  
                 self.open_puzzle(data["LEVEL"])
                 if data["MAPHASH"] == self._map_hash:
                     self.placed_walls = data["PROGRESS"]
-                    self._check_board_state = True
+                    self._check_for_errors()
                 else:
                     logging.warn("Map hash invalid for puzzle ID.")
                     self.open_random_puzzle()
@@ -225,6 +230,7 @@ class DungeonCross:
             save_data = {}
             save_data['VERSION'] = VERSION
             save_data['WINS'] = self._player_wins
+            save_data['MUTE_ALWAYS'] = self._mute_always
             save_data["LEVEL"] = self.get_puzzle_id()
             save_data["PROGRESS"] = self.placed_walls
             save_data["MAPHASH"] = self._map_hash
@@ -337,7 +343,7 @@ class DungeonCross:
             if click_lmb and not self._mouse_action:
                 self._mouse_action = MouseAction.MENU_ACTION.value
                 self._menu_is_open = True
-                print("MENU OPEN")
+                logging.debug("MENU OPEN")
 
     def get_number_of_puzzles(self):
         """Returns total number of puzzles loaded."""
