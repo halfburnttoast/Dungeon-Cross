@@ -37,7 +37,7 @@ import sound_handler
 from map_object_enum import MapObject
 from resource_path import resource_path
 
-VERSION = "v0.17.0"
+VERSION = "v0.17.1"
 G_LOG_LEVEL = logging.INFO
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -485,7 +485,7 @@ class DungeonCross:
             600,
             theme = self._menu_theme
         )
-        with open("tutorial.txt") as f:
+        with open(resource_path("tutorial.txt")) as f:
             lines = f.readlines()
         f.close()
         menu.add.image(resource_path("sprite/enemies/hydra3.png"))
