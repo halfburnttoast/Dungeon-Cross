@@ -40,7 +40,7 @@ from map_object_enum import MapObject
 from resource_path import resource_path
 from save_game import SaveFile
 
-VERSION = "v0.19.4"
+VERSION = "v0.19.5"
 G_LOG_LEVEL = logging.INFO
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -617,7 +617,6 @@ def main():
     # main loop
     logging.info("GAME START")
     while game_run:
-        #game.open_random_puzzle()
         while game_run and not game.game_won:
 
             # clear screen
@@ -641,6 +640,7 @@ def main():
             clock.tick(TARGET_FPS)
         if game.game_won:
             time.sleep(2)
+            game.open_random_puzzle()
 
 if __name__ == '__main__':
     main()
