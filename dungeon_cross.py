@@ -28,6 +28,7 @@ import time
 import pygame
 import random
 import logging
+import hashlib
 import log_system
 import pygame_menu
 import pygame_menu.locals
@@ -37,9 +38,10 @@ from enum import Enum
 import sound_handler
 from map_object_enum import MapObject
 from resource_path import resource_path
+from save_game import SaveFile
 
-VERSION = "v0.17.2"
-G_LOG_LEVEL = logging.INFO
+VERSION = "v0.19.0"
+G_LOG_LEVEL = logging.DEBUG
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 30
@@ -61,6 +63,7 @@ class DungeonCross:
         # I/O Objects
         self._screen: pygame.Surface = screen
         self._sound: sound_handler.SoundHandler = sound
+        self._save_file = SaveFile("dungeon_cross.sav")
 
         # Create Menus 
         self._menu_theme = self._menu_build_theme()
@@ -84,6 +87,7 @@ class DungeonCross:
         self.y_lim  = []
         self.game_won = False
         self.last_puzzle_id = -1
+        self._map_hash: str = 0
         self._mouse_action: MouseAction = MouseAction.NONE.value
         self._check_board_state = False
         self._player_wins = 0
@@ -146,6 +150,9 @@ class DungeonCross:
         self.hint_y = [0] * 8
         self.x_err  = []
         self.y_err  = []
+        if not num in range(0, self.get_number_of_puzzles() + 1):
+            logging.error(f"Attempted to load invalid puzzle ID {num}")
+            num = 0
         self.board_layout = self.puzzle_book[num]
         self._calc_hints()
         self.placed_walls = self._strip_walls()
@@ -154,6 +161,8 @@ class DungeonCross:
         self.last_puzzle_id = num
         pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num:05d} - Wins: {self._player_wins}")
         self._sound.play_sfx(self._sound_open)
+        self._map_hash = hashlib.sha256(repr(self.board_layout).encode()).hexdigest()
+        logging.debug(f"Map hash: {self._map_hash}")
         self._check_for_errors()
     
     def open_random_puzzle(self):
@@ -191,7 +200,39 @@ class DungeonCross:
                 rm = event.button == 3
                 self._game_handle_mouse(lm_event=lm, rm_event=rm)
         return True
+        
+    ### Save game methods
+    def load_save(self):
+        try:
+            data = self._save_file.get_save_data()
+            if data["VERSION"] == VERSION:
+                self._player_wins = data["WINS"]
+                self.open_puzzle(data["LEVEL"])
+                if data["MAPHASH"] == self._map_hash:
+                    self.placed_walls = data["PROGRESS"]
+                    self._check_board_state = True
+                else:
+                    logging.warn("Map hash invalid for puzzle ID.")
+                    self.open_random_puzzle()
+            else:
+                self.open_random_puzzle()
+        except Exception as e:
+            logging.error(f"Exception opening/reading save file {self._save_file.get_save_path()}\n{e}")
+            self.open_random_puzzle()
     
+    def save_game(self):
+        try:
+            save_data = {}
+            save_data['VERSION'] = VERSION
+            save_data['WINS'] = self._player_wins
+            save_data["LEVEL"] = self.get_puzzle_id()
+            save_data["PROGRESS"] = self.placed_walls
+            save_data["MAPHASH"] = self._map_hash
+            self._save_file.store_save_data(save_data)
+        except Exception as e:
+            logging.error(f"Could not save to save file \n{e}")
+
+
     ### Menu wrapper methods
     def _menu_open_map(self, val = None):
         self.open_puzzle(self._menu_pid)
@@ -564,12 +605,13 @@ def main():
     # create game and load levels
     game = DungeonCross(screen, sound)
     game.load_puzzle_book()
+    game.load_save()
     game_run = True
 
     # main loop
     logging.info("GAME START")
     while game_run:
-        game.open_random_puzzle()
+        #game.open_random_puzzle()
         while game_run and not game.game_won:
 
             # clear screen
@@ -580,6 +622,7 @@ def main():
             for event in events:
                 if event.type == pygame.QUIT:
                     print("GAME EXITING")
+                    game.save_game()
                     game_run = False
                 else:
                     game_run = game.handle_io_event(event)
