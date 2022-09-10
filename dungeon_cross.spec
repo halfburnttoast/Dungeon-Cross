@@ -6,6 +6,8 @@ block_cipher = None
 added_files = [
 	('sprite/*', 'sprite'),
     ('puzzles.json', '.'),
+    ('tutorial.txt', '.'),
+    ('about.txt', '.'),
     ('audio/music/*', 'audio/music'),
     ('audio/sfx/*', 'audio/sfx')
 ]
