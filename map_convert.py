@@ -20,6 +20,7 @@
 #  MA 02110-1301, USA.
 
 import json
+import gzip
 import random
 from map_object_enum import MapObject
 
@@ -145,8 +146,8 @@ def main():
         out_list.append(convert_map(line))
         if i % 1000 == 0:
             print('.', end='', flush=True)
-    with open("puzzles.json", "w") as f:
-        json.dump(out_list, f)
+    with gzip.open("puzzles.json.gz", "w") as f:
+        f.write(bytes(json.dumps(out_list, separators=(',', ':')), 'utf-8'))
     f.close()
     print("Done.")
 

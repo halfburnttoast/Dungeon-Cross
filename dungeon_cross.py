@@ -22,6 +22,7 @@
 import os
 import sys
 import math
+import gzip
 import json
 import time
 import pygame
@@ -85,6 +86,7 @@ class DungeonCross:
         self.last_puzzle_id = -1
         self._mouse_action: MouseAction = MouseAction.NONE.value
         self._check_board_state = False
+        self._player_wins = 0
 
         # UI variables
         self._font_offset = 32
@@ -122,11 +124,11 @@ class DungeonCross:
         self._sound_open = self._sound.load_sfx('audio/sfx/level_open.mp3')
 
 
-    def load_puzzle_book(self, file_name: str = "puzzles.json"):
+    def load_puzzle_book(self, file_name: str = "puzzles.json.gz"):
         """Loads a JSON file containing the puzzle data. Puzzles are stored as a list of lists."""
         logging.info(f"Opening puzzle book: {file_name}.")
         try:
-            with open(resource_path(file_name), 'r') as f:
+            with gzip.open(resource_path(file_name), 'r') as f:
                 self.puzzle_book = json.load(f)
                 f.close()
             logging.info(f"{len(self.puzzle_book)} puzzles loaded.")
@@ -150,7 +152,7 @@ class DungeonCross:
         self._check_board_state = False
         self.game_won = False
         self.last_puzzle_id = num
-        pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num:05d}")
+        pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num:05d} - Wins: {self._player_wins}")
         self._sound.play_sfx(self._sound_open)
         self._check_for_errors()
     
@@ -211,6 +213,10 @@ class DungeonCross:
     def _menu_mute(self):
         self._sound.stop_music()
         self._sound.muted = True 
+    def _menu_quit(self):
+        pygame.event.post(pygame.event.Event(pygame.QUIT))
+        self._menu_is_open = False
+        self._menu.disable()
 
     ### Internal game methods
     def _draw_game(self):
@@ -306,6 +312,7 @@ class DungeonCross:
         if self.board_layout == user_board:
             self._sound.play_sfx(self._sound_win)
             self.game_won = True
+            self._player_wins += 1
     
     def _check_for_errors(self):
         """
@@ -459,7 +466,7 @@ class DungeonCross:
         menu.add.vertical_fill(2)
         menu.add.button("How to Play", action=self._menu_tutorial)
         menu.add.button("About", self._menu_about)
-        menu.add.button('Quit', pygame_menu.events.EXIT)
+        menu.add.button('Quit', self._menu_quit)
         return menu
 
     def _menu_build_about(self):
@@ -572,6 +579,7 @@ def main():
             events = pygame.event.get()
             for event in events:
                 if event.type == pygame.QUIT:
+                    print("GAME EXITING")
                     game_run = False
                 else:
                     game_run = game.handle_io_event(event)
