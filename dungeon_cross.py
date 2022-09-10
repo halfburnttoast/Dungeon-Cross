@@ -37,7 +37,7 @@ import sound_handler
 from map_object_enum import MapObject
 from resource_path import resource_path
 
-VERSION = "v0.16.0"
+VERSION = "v0.17.0"
 G_LOG_LEVEL = logging.INFO
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -63,9 +63,13 @@ class DungeonCross:
 
         # Create Menus 
         self._menu_theme = self._menu_build_theme()
+        self._menu_tutorial = self._menu_build_tutorial()
         self._menu_about = self._menu_build_about()
         self._menu = self._menu_build_main()
         self._menu_pid: int = 0
+        self._menu_backdrop = pygame.Surface(self._screen.get_size())
+        self._menu_backdrop.fill((50, 50, 50))
+        self._menu_backdrop.set_alpha(150)
 
         # Game variables
         self.board_layout = []
@@ -220,6 +224,8 @@ class DungeonCross:
         self._draw_limit()
         if self.game_won:
             self._screen.blit(self._sprite_win, (0, 0))
+        if self._menu_is_open:
+            self._screen.blit(self._menu_backdrop, (0, 0))
 
     def _game_handle_mouse(self, lm_event: bool = False, rm_event: bool = False):
         """
@@ -424,14 +430,14 @@ class DungeonCross:
         theme.background_color = THEME_COLOR
         theme.widget_font_shadow = True
         theme.widget_font_size = 20
-        theme.widget_padding = 10
+        #theme.widget_padding = 10
         return theme
     
     def _menu_build_main(self) -> pygame_menu.Menu:
         menu: pygame_menu.Menu = pygame_menu.Menu(
-            "", 
+            "Dungeon Cross", 
             400, 
-            500,
+            600,
             theme = self._menu_theme
         )
         menu.set_onclose(self._menu_close)
@@ -451,6 +457,7 @@ class DungeonCross:
         )
         menu.add.button("Load Puzzle", action=self._menu_open_map)
         menu.add.vertical_fill(2)
+        menu.add.button("How to Play", action=self._menu_tutorial)
         menu.add.button("About", self._menu_about)
         menu.add.button('Quit', pygame_menu.events.EXIT)
         return menu
@@ -465,8 +472,35 @@ class DungeonCross:
         with open("about.txt") as f:
             lines = f.readlines()
         f.close()
+        menu.add.image(resource_path("sprite/enemies/hydra3.png"))
         for line in lines:
             menu.add.label(line.splitlines()[0], align=pygame_menu.locals.ALIGN_LEFT)
+        menu.add.image(resource_path("sprite/enemies/hydra3.png"))
+        return menu
+    
+    def _menu_build_tutorial(self):
+        menu: pygame_menu.Menu = pygame_menu.Menu(
+            "Tutorial", 
+            700, 
+            600,
+            theme = self._menu_theme
+        )
+        with open("tutorial.txt") as f:
+            lines = f.readlines()
+        f.close()
+        menu.add.image(resource_path("sprite/enemies/hydra3.png"))
+        for line in lines:
+            if line.strip() == '':
+                continue
+            if line.strip()[0] == '#':
+                file_str = line.strip('#')
+                try:
+                    menu.add.image(resource_path(file_str.strip()))
+                except AssertionError as e:
+                    print(e)
+            else:
+                menu.add.label(line.splitlines()[0], align=pygame_menu.locals.ALIGN_LEFT)
+        menu.add.image(resource_path("sprite/enemies/hydra3.png"))
         return menu
 
 def show_splash(screen: pygame.Surface):
@@ -529,8 +563,6 @@ def main():
     logging.info("GAME START")
     while game_run:
         game.open_random_puzzle()
-        #game.open_puzzle(10)
-
         while game_run and not game.game_won:
 
             # clear screen
@@ -538,7 +570,6 @@ def main():
 
             # handle quit events
             events = pygame.event.get()
-            # game.handle_mouse()
             for event in events:
                 if event.type == pygame.QUIT:
                     game_run = False

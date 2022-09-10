@@ -1,0 +1,25 @@
+The rules are exactly the same as Zachtronic's Dungeons
+and Diagrams.
+
+This game is similar to picross with a few twists. Left
+click and drag to place or remove walls. Right click and
+drag to place or remove marks.
+
+The numbers on the rows and columns indicate the number
+of walls on that column or row.
+#sprite/tut0.png
+A treasure chest is always in a 3x3 empty room with exactly
+ONE entrance. The chest can appear in ANY of the 3x3 tiles
+in that room. (Yes, a treasure chest can appear directly
+in the entrance)
+#sprite/tut2.png
+Any "dead-end" (a tile with three walls surrounding it,
+including borders) MUST contain a monster. 
+#sprite/tut1.png
+A monster must ALWAYS be in a dead-end.
+#sprite/tut3.png
+A 2x2 grid (or larger) of empty space can't exist outside 
+of a treasure room.
+
+Every empty tile must connect back to every other tile by
+some path. There can't be any "islands" of empty tiles.
