@@ -1,6 +1,7 @@
 * Add variety to enemies shown
 	* Either have them randomized per map or possibly have a set theme chosen per map
     * Possibly add animated enemies?
+* Add undo/redo function to game
 
 
 
