@@ -42,7 +42,7 @@ from resource_path import resource_path
 from save_game import SaveFile
 
 VERSION = "v0.20.1"
-G_LOG_LEVEL = logging.INFO
+G_LOG_LEVEL = logging.DEBUG
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 30
@@ -87,6 +87,7 @@ class DungeonCross:
         self.board_layout = []
         self.puzzle_book  = []
         self.placed_walls = []
+        self._enemy_layer = []
         self.hint_x = [0] * 8
         self.hint_y = [0] * 8
         self.x_err  = []
@@ -127,6 +128,9 @@ class DungeonCross:
         self._sprite_number = []
         for i in range(0, 9):
             self._sprite_number.append(self._load_sprite(f"sprite/{i}.png", TILE_SIZE - self._font_offset, TILE_SIZE - self._font_offset))
+        self._sprite_enemies = []  
+        for sprite in os.listdir(resource_path('sprite/enemies/')):
+            self._sprite_enemies.append(self._load_sprite(os.path.join('sprite/enemies/', sprite)))
         pygame.display.set_icon(self._sprite_book)
 
         # sound effects
@@ -174,6 +178,7 @@ class DungeonCross:
         self._sound.play_sfx(self._sound_open)
         self._map_hash = hashlib.sha256(repr(self.board_layout).encode()).hexdigest()
         logging.debug(f"Map hash: {self._map_hash}")
+        self._enemy_layer = self._pick_enemies()
         self._check_for_errors()
     
     def open_random_puzzle(self):
@@ -459,6 +464,15 @@ class DungeonCross:
         for i in self.y_lim:
             self._screen.blit(self._limit_overlay, (0, (i + 1) * TILE_SIZE))
 
+    def _pick_enemies(self) -> list:
+        def get_enemy() -> int:
+            return random.randint(0, len(self._sprite_enemies) - 1)
+        out = []
+        for row in self.board_layout:
+            row_out = [get_enemy() if v == MapObject.ENEMY.value else -1 for v in row]
+            out.append(row_out)
+        return out
+
     def _strip_walls(self) -> list:
         """Removes walls from loaded puzzle. Used to generate the 'user board'."""
         out = []
@@ -501,13 +515,15 @@ class DungeonCross:
             for x, obj in enumerate(row):
                 if show_wall and obj == MapObject.WALL.value:
                     self._draw_sprite(self._sprite_wall, (x, y))
-                elif obj == MapObject.ENEMY.value:
-                    self._draw_sprite(self._sprite_enemy, (x, y))
                 elif obj == MapObject.CHEST.value:
                     self._draw_sprite(self._sprite_chest, (x, y))
+        for y, row in enumerate(self._enemy_layer):
+            for x, val in enumerate(row):
+                if val > 0:
+                    self._draw_sprite(self._sprite_enemies[val], (x, y))
 
     def _load_sprite(self, path: str, size_x: int = TILE_SIZE, size_y: int = TILE_SIZE) -> pygame.image:
-        logging.debug(f"Loading sprite: {path}. Size ({size_x}, {size_y}")
+        logging.debug(f"Loading sprite: {path}. Size ({size_x}, {size_y})")
         try:
             image = pygame.image.load(resource_path(path))
             return pygame.transform.scale(image, (size_x, size_x))
