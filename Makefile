@@ -1,6 +1,13 @@
+OS := $(shell uname)
+ifeq ($(OS),Darwin)
+SPEC := dungeon_cross_mac.spec
+else
+SPEC := dungeon_cross.spec
+endif
+
 all:
 	make premake
-	python3 -m PyInstaller dungeon_cross.spec
+	python3 -m PyInstaller $(SPEC)
 premake:
 	make install-reqs
 	pip3 install pyinstaller --user
