@@ -196,6 +196,9 @@ class DungeonCross:
         """Returns false if ESCAPE key was pressed"""
         if not self._menu_is_open:
             if event.type == pygame.KEYDOWN:
+                mods = pygame.key.get_mods()
+                shift_pressed = bool(mods & 0x1)
+                ctrl_pressed  = bool(mods & 0x40)
                 if event.key == pygame.K_ESCAPE:
                     return False
                 if not self._menu_is_open:
@@ -207,9 +210,6 @@ class DungeonCross:
                         self._sound.stop_music()
                         self._sound.muted = True     
                     elif event.key == pygame.K_z:
-                        mods = pygame.key.get_mods()
-                        shift_pressed = bool(mods & 0x1)
-                        ctrl_pressed  = bool(mods & 0x40)
                         if ctrl_pressed:
                             if not shift_pressed:
                                 self._undo_action()
@@ -217,6 +217,9 @@ class DungeonCross:
                             else:
                                 self._redo_action()
                                 self._check_for_errors()
+                    elif event.key == pygame.K_y and ctrl_pressed:
+                        self._redo_action()
+                        self._check_for_errors()                        
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 lm = event.button == 1
                 rm = event.button == 3
@@ -663,7 +666,7 @@ def main():
 
     # create game and load levels
     game = DungeonCross(screen, sound)
-    game.load_puzzle_book()
+    game.load_puzzle_book("debug_puzzles.json.gz")
     game.load_save()
     game_run = True
 
