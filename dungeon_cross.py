@@ -215,8 +215,6 @@ class DungeonCross:
                             if not shift_pressed:
                                 self._undo_action()
                                 self._check_for_errors()
-                                print(self._action_history_idx)
-                                print(self._action_history_idx_top)
                             else:
                                 self._redo_action()
                                 self._check_for_errors()
@@ -296,7 +294,6 @@ class DungeonCross:
             self._action_history_idx -= 1
             action: HistoryAction = self._action_history[self._action_history_idx]
             self.placed_walls[action.y][action.x] = action.old_state
-            print("UNDO")
 
     def _redo_action(self):
         """Redo an action after an undo was made."""
@@ -384,15 +381,12 @@ class DungeonCross:
                             # the past, reset the 'top' pointer to start overwriting 
                             # old actions
                             this_action = HistoryAction(mx, my, old_state, self.placed_walls[my][mx])
-                            if len(self._action_history) <= self._action_history_idx_top:
-                                self._action_history.append(this_action)
-                            else:
+                            try:
                                 self._action_history[self._action_history_idx] = this_action
+                            except IndexError:
+                                self._action_history.append(this_action)
                             self._action_history_idx += 1
                             self._action_history_idx_top = self._action_history_idx
-                            print(self._action_history)
-                            print(self._action_history_idx)
-                            print(self._action_history_idx_top)
 
             # if a user wall has changed, check for errors/win condition
             if self._check_board_state:
