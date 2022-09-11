@@ -25,7 +25,6 @@ import math
 import gzip
 import json
 import time
-from unicodedata import name
 import pygame
 import random
 import logging
