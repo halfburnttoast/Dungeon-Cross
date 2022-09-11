@@ -25,6 +25,7 @@ import math
 import gzip
 import json
 import time
+from unicodedata import name
 import pygame
 import random
 import logging
@@ -32,6 +33,7 @@ import hashlib
 import pygame_menu
 import pygame_menu.locals
 from enum import Enum
+from collections import namedtuple
 
 # local includes
 import log_system
@@ -46,6 +48,9 @@ TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 30
 THEME_COLOR = (100, 70, 0)
+
+
+HistoryAction = namedtuple("HistoryAction", ['x', 'y', 'old_state', 'new_state'])
 
 class MouseAction(Enum):
     """Mouse action ENUM"""
@@ -77,6 +82,9 @@ class DungeonCross:
         self._menu_backdrop.set_alpha(150)
 
         # Game variables
+        self._action_history = []
+        self._action_history_idx = 0
+        self._action_history_idx_top = 0
         self.board_layout = []
         self.puzzle_book  = []
         self.placed_walls = []
@@ -151,6 +159,9 @@ class DungeonCross:
         self.hint_y = [0] * 8
         self.x_err  = []
         self.y_err  = []
+        self._action_history = []
+        self._action_history_idx = 0
+        self._action_history_idx_top = 0
         if not num in range(0, self.get_number_of_puzzles() + 1):
             logging.error(f"Attempted to load invalid puzzle ID {num}")
             num = 0
@@ -195,7 +206,20 @@ class DungeonCross:
                         self.open_puzzle(self.get_puzzle_id())
                     elif event.key == pygame.K_m:
                         self._sound.stop_music()
-                        self._sound.muted = True      
+                        self._sound.muted = True     
+                    elif event.key == pygame.K_z:
+                        mods = pygame.key.get_mods()
+                        shift_pressed = bool(mods & 0x1)
+                        ctrl_pressed  = bool(mods & 0x40)
+                        if ctrl_pressed:
+                            if not shift_pressed:
+                                self._undo_action()
+                                self._check_for_errors()
+                                print(self._action_history_idx)
+                                print(self._action_history_idx_top)
+                            else:
+                                self._redo_action()
+                                self._check_for_errors()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 lm = event.button == 1
                 rm = event.button == 3
@@ -266,6 +290,21 @@ class DungeonCross:
         self._menu.disable()
 
     ### Internal game methods
+    def _undo_action(self):
+        """Undo a move from the user. Retains history for Redo function."""
+        if self._action_history_idx > 0:
+            self._action_history_idx -= 1
+            action: HistoryAction = self._action_history[self._action_history_idx]
+            self.placed_walls[action.y][action.x] = action.old_state
+            print("UNDO")
+
+    def _redo_action(self):
+        """Redo an action after an undo was made."""
+        if self._action_history_idx < self._action_history_idx_top:
+            action: HistoryAction = self._action_history[self._action_history_idx]
+            self._action_history_idx += 1
+            self.placed_walls[action.y][action.x] = action.new_state
+
     def _draw_game(self):
         self._draw_frame()
         for y in range(1, 9):
@@ -315,24 +354,45 @@ class DungeonCross:
                 # update user tiles based on mouse location and action
                 if self._mouse_action:
                     if map_tile in [MapObject.EMPTY.value, MapObject.WALL.value]:
+                        update_history = False
+                        old_state = self.placed_walls[my][mx]
                         if self._mouse_action == MouseAction.PLACE_WALL.value:
                             if user_tile == MapObject.EMPTY.value:
                                 self.placed_walls[my][mx] = MapObject.WALL.value
                                 self._check_board_state = True
                                 self._sound.play_sfx(self._sound_wall)
+                                update_history = True
                         elif self._mouse_action == MouseAction.REMOVE_WALL.value:
                             if user_tile == MapObject.WALL.value:
                                 self.placed_walls[my][mx] = MapObject.EMPTY.value
                                 self._check_board_state = True
                                 self._sound.play_sfx(self._sound_wall)
+                                update_history = True
                         elif self._mouse_action == MouseAction.PLACE_MARK.value:
                             if user_tile == MapObject.EMPTY.value:
                                 self.placed_walls[my][mx] = MapObject.MARK.value
                                 self._sound.play_sfx(self._sound_mark)
+                                update_history = True
                         elif self._mouse_action == MouseAction.REMOVE_MARK.value:
                             if user_tile == MapObject.MARK.value:
                                 self.placed_walls[my][mx] = MapObject.EMPTY.value                   
                                 self._sound.play_sfx(self._sound_mark) 
+                                update_history = True
+                        if update_history:
+
+                            # update history with this move. If we've done an undo in
+                            # the past, reset the 'top' pointer to start overwriting 
+                            # old actions
+                            this_action = HistoryAction(mx, my, old_state, self.placed_walls[my][mx])
+                            if len(self._action_history) <= self._action_history_idx_top:
+                                self._action_history.append(this_action)
+                            else:
+                                self._action_history[self._action_history_idx] = this_action
+                            self._action_history_idx += 1
+                            self._action_history_idx_top = self._action_history_idx
+                            print(self._action_history)
+                            print(self._action_history_idx)
+                            print(self._action_history_idx_top)
 
             # if a user wall has changed, check for errors/win condition
             if self._check_board_state:
