@@ -56,7 +56,7 @@ class SoundHandler:
                         except pygame_error as e:
                             logging.warn("Couldn't open audio output device.")
                             raise
-                    mixer.music.play(fade_ms=2000)
+                    mixer.music.play(fade_ms=5000)
     def set_volume(self, volume: int = 100):
         if self._mixer_running:
             vol = min(100, max(0, volume))

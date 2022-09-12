@@ -41,7 +41,7 @@ from map_object_enum import MapObject
 from resource_path import resource_path
 from save_game import SaveFile
 
-VERSION = "v0.20.1"
+VERSION = "v0.21.0"
 G_LOG_LEVEL = logging.INFO
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -68,7 +68,6 @@ class DungeonCross:
         self._screen: pygame.Surface = screen
         self._sound: sound_handler.SoundHandler = sound
         self._save_file = SaveFile("dungeon_cross.sav")
-        self._mute_always = False
 
         # Create Menus 
         self._menu_theme = self._menu_build_theme()
@@ -232,8 +231,8 @@ class DungeonCross:
             data = self._save_file.get_save_data()
             self._player_wins = data["WINS"]
             if data["VERSION"] == VERSION:
-                self._mute_always = data["MUTE_ALWAYS"]
-                if self._mute_always:
+                self._sound.muted = data["MUTE"]
+                if self._sound.muted:
                     self._sound.stop_music()
                     self._sound.muted = True  
                 self.open_puzzle(data["LEVEL"])
@@ -254,7 +253,7 @@ class DungeonCross:
             save_data = {}
             save_data['VERSION'] = VERSION
             save_data['WINS'] = self._player_wins
-            save_data['MUTE_ALWAYS'] = self._mute_always
+            save_data['MUTE'] = self._sound.muted
             save_data["LEVEL"] = self.get_puzzle_id()
             save_data["PROGRESS"] = self.placed_walls
             save_data["MAPHASH"] = self._map_hash
@@ -281,9 +280,15 @@ class DungeonCross:
     def _menu_close(self):
         self._menu_is_open = False
         self._menu.disable()
-    def _menu_mute(self):
-        self._sound.stop_music()
-        self._sound.muted = True 
+    # def _menu_mute(self):
+    #     self._sound.stop_music()
+    #     self._sound.muted = True 
+    def _menu_set_mute(self, selection: tuple, val: bool) -> None:
+        self._sound.muted = val
+        if self._sound.muted:
+            self._sound.stop_music()
+        else:
+            self._sound.play_music_all()
     def _menu_quit(self):
         pygame.event.post(pygame.event.Event(pygame.QUIT))
         self._menu_is_open = False
@@ -540,7 +545,6 @@ class DungeonCross:
         theme.background_color = THEME_COLOR
         theme.widget_font_shadow = True
         theme.widget_font_size = 20
-        #theme.widget_padding = 10
         return theme
     
     def _menu_build_main(self) -> pygame_menu.Menu:
@@ -554,7 +558,14 @@ class DungeonCross:
         menu.add.button('Resume', action=self._menu_close)
         menu.add.button('Reset', action=self._menu_reset)
         menu.add.button("Random Puzzle", action=self._menu_random_map)
-        menu.add.button("Mute", action=self._menu_mute)
+
+        # True and False specify the sound system variable _sound.muted, which is why they're backwards
+        menu.add.selector(
+            "Sound: ", 
+            [("Off", True), ["On", False]], 
+            onchange=self._menu_set_mute, 
+            default=1
+        )
         menu.add.vertical_fill(2)
         menu.add.text_input(
             'Puzzle ID: ',
@@ -682,7 +693,7 @@ def main():
             events = pygame.event.get()
             for event in events:
                 if event.type == pygame.QUIT:
-                    print("GAME EXITING")
+                    logging.info("GAME EXITING")
                     game.save_game()
                     game_run = False
                 else:
