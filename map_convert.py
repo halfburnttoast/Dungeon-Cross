@@ -21,8 +21,12 @@
 
 import json
 import gzip
+import numpy
 import random
+import argparse
 from map_object_enum import MapObject
+
+VERSION = "v1.1.0"
 
 def to_bit_list(byte):
     out = []
@@ -41,6 +45,11 @@ def convert_str_to_map(map_str: str):
     return get_walls(map_bytes)
 
 def place_enemies(map_list: list):
+    """
+    Locates any tile surrounded by three walls (including borders) and inserts
+    the MapObject.ENEMY.value into that tile. 
+    """
+
     for yi, yv in enumerate(map_list):
         for xi, xv in enumerate(yv):
             cell_score = 0
@@ -77,6 +86,11 @@ def place_enemies(map_list: list):
     return map_list
 
 def place_chest(map_list: list):
+    """
+    Locates an empty 3x3 grid and places a chest in a random position.
+    This is currently done by a brute-force method.
+    """
+
     for yi, yv in enumerate(map_list):
 
         # a treasure room cannot start below row 5
@@ -129,6 +143,41 @@ def place_chest(map_list: list):
                 exit(1)
     return map_list
 
+def get_rot_maps(map_list: list) -> list:
+    """
+    Returns copies of the maps rotated by 90-degree intervals.
+    Does not return original maps.
+    """
+
+    print("Generating rotated maps", end="")
+    out_list = []
+    for i, m in enumerate(map_list):
+        mp: numpy.ndarray = numpy.array(m)
+        for _ in range(0, 3):
+            mp = numpy.rot90(mp)
+            out_list.append(mp.tolist())
+        if i % 1000 == 0:
+            print(".", end="", flush=True)
+    print("Done.")
+    return out_list
+
+def get_flip_maps(map_list: list) -> list:
+    """
+    Returns list of flippled maps
+    Does not return original maps.
+    """
+
+    print("Generating flipped maps", end="")
+    out_list = []
+    for i, m in enumerate(map_list):
+        mp: numpy.ndarray = numpy.array(m)
+        mp = numpy.flip(mp)
+        out_list.append(mp.tolist())
+        if i % 1000 == 0:
+            print(".", end="", flush=True)
+    print("Done.")
+    return out_list
+
 def convert_map(map_list: list) -> list:
     _map = convert_str_to_map(map_list)
     _map = place_enemies(_map)
@@ -136,16 +185,39 @@ def convert_map(map_list: list) -> list:
     return _map
 
 def main():
+    print(f"Map Converter {VERSION}")
+
+    # get command arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-r", action="store_true", help="Include rotated maps.")
+    parser.add_argument("-f", action="store_true", help="Include flipped maps.")
+    parser.add_argument("file", type=argparse.FileType('r'))
+    args = parser.parse_args()
+
+    # retrieve all the raw mask codes 
     print("Building maps", end='',flush=True)
-    with open("mapcodes.txt", 'r') as f:
+    with args.file as f:
         lines = f.read().splitlines()
     f.close()
 
+    # start building the maps (walls, monsters, chests)
     out_list = []
     for i, line in enumerate(lines):
         out_list.append(convert_map(line))
         if i % 1000 == 0:
             print('.', end='', flush=True)
+    print("Done.")
+
+    # if rotation option is selected, call the rotation function and merge the returned list
+    if args.r:
+        out_list = out_list + get_rot_maps(out_list)
+
+    # if flip option is selected, call the flip function and merge the returned list
+    if args.f:
+        out_list = out_list + get_flip_maps(out_list)
+
+    # finally, write output to a compressed file
+    print(f"Writing {len(out_list)} maps to file, this might take a while...")
     with gzip.open("puzzles.json.gz", "w") as f:
         f.write(bytes(json.dumps(out_list, separators=(',', ':')), 'utf-8'))
     f.close()
