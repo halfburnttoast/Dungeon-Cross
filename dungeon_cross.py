@@ -19,8 +19,6 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 
-import os
-import sys
 import math
 import gzip
 import json
@@ -40,15 +38,16 @@ import sound_handler
 from map_object_enum import MapObject
 from resource_path import resource_path
 from save_game import SaveFile
+from debug_timer import debug_timer
 
-VERSION = "v0.21.0"
-G_LOG_LEVEL = logging.INFO
+VERSION = "v0.21.1"
+G_LOG_LEVEL = logging.DEBUG
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 30
 THEME_COLOR = (100, 70, 0)
 
-
+# Used to store a single user action for undo/redo functions
 HistoryAction = namedtuple("HistoryAction", ['x', 'y', 'old_state', 'new_state'])
 
 class MouseAction(Enum):
@@ -80,21 +79,21 @@ class DungeonCross:
         self._menu_backdrop.set_alpha(150)
 
         # Game variables
+        self.game_won = False
+        self.last_puzzle_id = -1
         self._action_history = []
         self._action_history_idx = 0
         self._action_history_idx_top = 0
-        self.board_layout = []
-        self.puzzle_book  = []
-        self.placed_walls = []
-        self.hint_x = [0] * 8
-        self.hint_y = [0] * 8
-        self.x_err  = []
-        self.y_err  = []
-        self.x_lim  = []
-        self.y_lim  = []
-        self.game_won = False
-        self.last_puzzle_id = -1
-        self._map_hash: str = 0
+        self._board_layout = []
+        self._puzzle_book  = []
+        self._placed_walls = []
+        self._hint_x = [0] * 8
+        self._hint_y = [0] * 8
+        self._x_err  = []
+        self._y_err  = []
+        self._x_lim  = []
+        self._y_lim  = []
+        self._map_hash: str = ""
         self._mouse_action: MouseAction = MouseAction.NONE.value
         self._check_board_state = False
         self._player_wins = 0
@@ -128,68 +127,83 @@ class DungeonCross:
             self._sprite_number.append(self._load_sprite(f"sprite/{i}.png", TILE_SIZE - self._font_offset, TILE_SIZE - self._font_offset))
         pygame.display.set_icon(self._sprite_book)
 
-        # sound effects
+        # load sound effects
         self._sound_win = self._sound.load_sfx('audio/sfx/level_win.mp3')
         self._sound_wall = self._sound.load_sfx('audio/sfx/place_wall.mp3')
         self._sound_mark = self._sound.load_sfx('audio/sfx/place_mark.mp3')
         self._sound_open = self._sound.load_sfx('audio/sfx/level_open.mp3')
 
+    def update(self):
+        """Main game update function. Should be called in main loop."""
+        if not self._menu_is_open:
+            self._game_handle_mouse()
+            self._draw_game()
+        else:
+            self._menu.enable()
+            self._menu.mainloop(self._screen, bgfun=self._draw_game)
 
+    @debug_timer
     def load_puzzle_book(self, file_name: str = "puzzles.json.gz"):
         """Loads a JSON file containing the puzzle data. Puzzles are stored as a list of lists."""
         logging.info(f"Opening puzzle book: {file_name}.")
         try:
             with gzip.open(resource_path(file_name), 'r') as f:
-                self.puzzle_book = json.load(f)
+                self._puzzle_book = json.load(f)
                 f.close()
-            logging.info(f"{len(self.puzzle_book)} puzzles loaded.")
+            logging.info(f"{len(self._puzzle_book)} puzzles loaded.")
         except FileNotFoundError:
-            logging.warn(f"Couldn't open file: {file_name}")
+            logging.warning(f"Couldn't open file: {file_name}")
             raise
         except json.JSONDecodeError:
-            logging.warn(f"Error reading file: {file_name}")
+            logging.warning(f"Error reading file: {file_name}")
             raise
     
-    def open_puzzle(self, num: int = 0):
-        """Opens a puzzle by ID."""
+    def open_puzzle(self, num: int = 0) -> None:
+        """
+        Opens a puzzle by ID. Whatever method you use to select a puzzle number
+        by should end with calling this method. Invalid puzzle IDs will default
+        to puzzle #0.
+        """
+
         logging.info(f"Opening puzzle #{num:05d}.")
-        self.hint_x = [0] * 8
-        self.hint_y = [0] * 8
-        self.x_err  = []
-        self.y_err  = []
+
+        # reset board data
+        self._hint_x = [0] * 8
+        self._hint_y = [0] * 8
+        self._x_err  = []
+        self._y_err  = []
+
+        # reset user history
         self._action_history = []
         self._action_history_idx = 0
         self._action_history_idx_top = 0
-        if not num in range(0, self.get_number_of_puzzles() + 1):
+
+        # if we attempt to load an invalid puzzle, default to puzzle 0
+        if num not in range(0, self.get_number_of_puzzles() + 1):
             logging.error(f"Attempted to load invalid puzzle ID {num}")
             num = 0
-        self.board_layout = self.puzzle_book[num]
-        self._calc_hints()
-        self.placed_walls = self._strip_walls()
-        self._check_board_state = False
+
+        # load and setup game board
         self.game_won = False
         self.last_puzzle_id = num
-        pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num:05d} - Wins: {self._player_wins}")
+        self._board_layout = self._puzzle_book[num]
+        self._calc_hints()
+        self._placed_walls = self._strip_walls()
+        self._check_board_state = False
         self._sound.play_sfx(self._sound_open)
-        self._map_hash = hashlib.sha256(repr(self.board_layout).encode()).hexdigest()
-        logging.debug(f"Map hash: {self._map_hash}")
         self._check_for_errors()
+        self._map_hash = hashlib.sha256(repr(self._board_layout).encode()).hexdigest()
+        self._menu.get_widget("PUZZLE_ID").set_value(f"{num:05d}")
+        self._menu_pid = num
+        logging.debug(f"Map hash: {self._map_hash}")
+        pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num:05d} - Wins: {self._player_wins}")
     
     def open_random_puzzle(self):
         """Opens a random puzzle. Will not select the same puzzle twice in a row."""
-        pid = random.choice(range(0, len(self.puzzle_book)))
+        pid = random.choice(range(0, len(self._puzzle_book)))
         if pid == self.last_puzzle_id:
-            pid = (pid + 1) % len(self.puzzle_book)
+            pid = (pid + 1) % len(self._puzzle_book)
         self.open_puzzle(pid)
-
-    def update(self):
-        if not self._menu_is_open:
-            self._game_handle_mouse()
-            self._draw_game()
-        else:
-            # do menu update here1
-            self._menu.enable()
-            self._menu.mainloop(self._screen, bgfun=self._draw_game)
 
     def handle_io_event(self, event: pygame.event.Event) -> bool:
         """Returns false if ESCAPE key was pressed"""
@@ -205,9 +219,9 @@ class DungeonCross:
                         self.open_random_puzzle()
                     elif event.key == pygame.K_r:
                         self.open_puzzle(self.get_puzzle_id())
-                    elif event.key == pygame.K_m:
-                        self._sound.stop_music()
-                        self._sound.muted = True     
+                    # elif event.key == pygame.K_m:
+                    #     self._sound.stop_music()
+                    #     self._sound.muted = True     
                     elif event.key == pygame.K_z:
                         if ctrl_pressed:
                             if not shift_pressed:
@@ -224,6 +238,14 @@ class DungeonCross:
                 rm = event.button == 3
                 self._game_handle_mouse(lm_event=lm, rm_event=rm)
         return True
+
+    def get_number_of_puzzles(self):
+        """Returns total number of puzzles loaded."""
+        return len(self._puzzle_book)
+    
+    def get_puzzle_id(self) -> int:
+        """Returns the ID of the currently open puzzle."""
+        return self.last_puzzle_id
         
     ### Save game methods
     def load_save(self):
@@ -234,13 +256,14 @@ class DungeonCross:
                 self._sound.muted = data["MUTE"]
                 if self._sound.muted:
                     self._sound.stop_music()
-                    self._sound.muted = True  
+                    self._sound.muted = True
+                    self._menu.get_widget("SOUND").set_value("Off")
                 self.open_puzzle(data["LEVEL"])
                 if data["MAPHASH"] == self._map_hash:
-                    self.placed_walls = data["PROGRESS"]
+                    self._placed_walls = data["PROGRESS"]
                     self._check_for_errors()
                 else:
-                    logging.warn("Map hash invalid for puzzle ID.")
+                    logging.warning("Map hash invalid for puzzle ID.")
                     self.open_random_puzzle()
             else:
                 self.open_random_puzzle()
@@ -255,14 +278,14 @@ class DungeonCross:
             save_data['WINS'] = self._player_wins
             save_data['MUTE'] = self._sound.muted
             save_data["LEVEL"] = self.get_puzzle_id()
-            save_data["PROGRESS"] = self.placed_walls
+            save_data["PROGRESS"] = self._placed_walls
             save_data["MAPHASH"] = self._map_hash
             self._save_file.store_save_data(save_data)
         except Exception as e:
             logging.error(f"Could not save to save file \n{e}")
 
 
-    ### Menu wrapper methods
+    ### Menu callback methods
     def _menu_open_map(self, val = None):
         self.open_puzzle(self._menu_pid)
         self._menu_close()
@@ -280,15 +303,12 @@ class DungeonCross:
     def _menu_close(self):
         self._menu_is_open = False
         self._menu.disable()
-    # def _menu_mute(self):
-    #     self._sound.stop_music()
-    #     self._sound.muted = True 
     def _menu_set_mute(self, selection: tuple, val: bool) -> None:
         self._sound.muted = val
         if self._sound.muted:
             self._sound.stop_music()
         else:
-            self._sound.play_music_all()
+            self._sound.play_next_background_song()
     def _menu_quit(self):
         pygame.event.post(pygame.event.Event(pygame.QUIT))
         self._menu_is_open = False
@@ -300,14 +320,14 @@ class DungeonCross:
         if self._action_history_idx > 0:
             self._action_history_idx -= 1
             action: HistoryAction = self._action_history[self._action_history_idx]
-            self.placed_walls[action.y][action.x] = action.old_state
+            self._placed_walls[action.y][action.x] = action.old_state
 
     def _redo_action(self):
         """Redo an action after an undo was made."""
         if self._action_history_idx < self._action_history_idx_top:
             action: HistoryAction = self._action_history[self._action_history_idx]
             self._action_history_idx += 1
-            self.placed_walls[action.y][action.x] = action.new_state
+            self._placed_walls[action.y][action.x] = action.new_state
 
     def _draw_game(self):
         self._draw_frame()
@@ -330,8 +350,8 @@ class DungeonCross:
         """
 
         mx, my      = self._get_mouse_to_grid()
-        user_tile   = self.placed_walls[my][mx]
-        map_tile    = self.board_layout[my][mx]
+        user_tile   = self._placed_walls[my][mx]
+        map_tile    = self._board_layout[my][mx]
         mouse_press = pygame.mouse.get_pressed()
         click_lmb   = mouse_press[0] or lm_event
         click_rmb   = mouse_press[2] or rm_event
@@ -359,27 +379,27 @@ class DungeonCross:
                 if self._mouse_action:
                     if map_tile in [MapObject.EMPTY.value, MapObject.WALL.value]:
                         update_history = False
-                        old_state = self.placed_walls[my][mx]
+                        old_state = self._placed_walls[my][mx]
                         if self._mouse_action == MouseAction.PLACE_WALL.value:
                             if user_tile == MapObject.EMPTY.value:
-                                self.placed_walls[my][mx] = MapObject.WALL.value
+                                self._placed_walls[my][mx] = MapObject.WALL.value
                                 self._check_board_state = True
                                 self._sound.play_sfx(self._sound_wall)
                                 update_history = True
                         elif self._mouse_action == MouseAction.REMOVE_WALL.value:
                             if user_tile == MapObject.WALL.value:
-                                self.placed_walls[my][mx] = MapObject.EMPTY.value
+                                self._placed_walls[my][mx] = MapObject.EMPTY.value
                                 self._check_board_state = True
                                 self._sound.play_sfx(self._sound_wall)
                                 update_history = True
                         elif self._mouse_action == MouseAction.PLACE_MARK.value:
                             if user_tile == MapObject.EMPTY.value:
-                                self.placed_walls[my][mx] = MapObject.MARK.value
+                                self._placed_walls[my][mx] = MapObject.MARK.value
                                 self._sound.play_sfx(self._sound_mark)
                                 update_history = True
                         elif self._mouse_action == MouseAction.REMOVE_MARK.value:
                             if user_tile == MapObject.MARK.value:
-                                self.placed_walls[my][mx] = MapObject.EMPTY.value                   
+                                self._placed_walls[my][mx] = MapObject.EMPTY.value                   
                                 self._sound.play_sfx(self._sound_mark) 
                                 update_history = True
                         if update_history:
@@ -387,7 +407,7 @@ class DungeonCross:
                             # update history with this move. If we've done an undo in
                             # the past, reset the 'top' pointer to start overwriting 
                             # old actions
-                            this_action = HistoryAction(mx, my, old_state, self.placed_walls[my][mx])
+                            this_action = HistoryAction(mx, my, old_state, self._placed_walls[my][mx])
                             try:
                                 self._action_history[self._action_history_idx] = this_action
                             except IndexError:
@@ -405,19 +425,11 @@ class DungeonCross:
                 self._mouse_action = MouseAction.MENU_ACTION.value
                 self._menu_is_open = True
                 logging.debug("MENU OPEN")
-
-    def get_number_of_puzzles(self):
-        """Returns total number of puzzles loaded."""
-        return len(self.puzzle_book)
-    
-    def get_puzzle_id(self) -> int:
-        """Returns the ID of the currently open puzzle."""
-        return self.last_puzzle_id
     
     def _check_win(self):
         """Checks to see if the user-modified board matches the puzzle book board."""
         user_board = self._strip_marks()
-        if self.board_layout == user_board:
+        if self._board_layout == user_board:
             self._sound.play_sfx(self._sound_win)
             self.game_won = True
             self._player_wins += 1
@@ -433,60 +445,60 @@ class DungeonCross:
         y_sum = []
 
         # calculate sums of placed walls row/columns
-        for i, v in enumerate(self.placed_walls):
+        for i, v in enumerate(self._placed_walls):
             y_sum.append(v.count(MapObject.WALL.value))
         for x in range(8):
-            sum = 0
+            e_sum = 0
             for y in range(8):
-                if self.placed_walls[y][x] == MapObject.WALL.value:
-                    sum = sum + 1
-            x_sum.append(sum)
+                if self._placed_walls[y][x] == MapObject.WALL.value:
+                    e_sum = e_sum + 1
+            x_sum.append(e_sum)
         
         # get indexes of errors when compared to the hint frame
-        self.x_err = [i for i, v in enumerate(x_sum) if v > self.hint_x[i]]
-        self.y_err = [i for i, v in enumerate(y_sum) if v > self.hint_y[i]]
+        self._x_err = [i for i, v in enumerate(x_sum) if v > self._hint_x[i]]
+        self._y_err = [i for i, v in enumerate(y_sum) if v > self._hint_y[i]]
 
         # get indexes of limits against hint frame
-        self.x_lim = [i for i, v in enumerate(x_sum) if v == self.hint_x[i]]
-        self.y_lim = [i for i, v in enumerate(y_sum) if v == self.hint_y[i]]
+        self._x_lim = [i for i, v in enumerate(x_sum) if v == self._hint_x[i]]
+        self._y_lim = [i for i, v in enumerate(y_sum) if v == self._hint_y[i]]
 
     def _draw_errors(self):
         """Draws a red overlay over the hint numbers based on the values in x_err and y_err"""
-        for i in self.x_err:
+        for i in self._x_err:
             self._screen.blit(self._err_overlay, ((i + 1) * TILE_SIZE, 0))
-        for i in self.y_err:
+        for i in self._y_err:
             self._screen.blit(self._err_overlay, (0, (i + 1) * TILE_SIZE))
 
     def _draw_limit(self):
         """Draws a red overlay over the hint numbers based on the values in x_err and y_err"""
-        for i in self.x_lim:
+        for i in self._x_lim:
             self._screen.blit(self._limit_overlay, ((i + 1) * TILE_SIZE, 0))
-        for i in self.y_lim:
+        for i in self._y_lim:
             self._screen.blit(self._limit_overlay, (0, (i + 1) * TILE_SIZE))
 
     def _strip_walls(self) -> list:
         """Removes walls from loaded puzzle. Used to generate the 'user board'."""
         out = []
-        for row in self.board_layout:
+        for row in self._board_layout:
             out.append([v if v != MapObject.WALL.value else MapObject.EMPTY.value for v in row])
         return out
 
     def _strip_marks(self) -> list:
         """Removes all user-placed marks. Used by _check_win"""
         out = []
-        for row in self.placed_walls:
+        for row in self._placed_walls:
             out.append([v if v != MapObject.MARK.value else MapObject.EMPTY.value for v in row])
         return out        
 
     def _calc_hints(self):
-        for i, v in enumerate(self.board_layout):
-            self.hint_y[i] = v.count(MapObject.WALL.value)
+        for i, v in enumerate(self._board_layout):
+            self._hint_y[i] = v.count(MapObject.WALL.value)
         for x in range(8):
             sum_y = 0
             for y in range(8):
-                if self.board_layout[y][x] == MapObject.WALL.value:
+                if self._board_layout[y][x] == MapObject.WALL.value:
                     sum_y = sum_y + 1
-            self.hint_x[x] = sum_y
+            self._hint_x[x] = sum_y
 
     def _draw_sprite(self, sprite: pygame.image, grid_pos: tuple):
         pos_x = (grid_pos[0] + 1) * TILE_SIZE
@@ -494,7 +506,7 @@ class DungeonCross:
         self._screen.blit(sprite, (pos_x, pos_y))
 
     def _draw_placed_objects(self):
-        for y, row in enumerate(self.placed_walls):
+        for y, row in enumerate(self._placed_walls):
             for x, obj in enumerate(row):
                 if obj == MapObject.WALL.value:
                     self._draw_sprite(self._sprite_wall, (x, y))
@@ -502,7 +514,7 @@ class DungeonCross:
                     self._draw_sprite(self._sprite_mark, (x, y))
 
     def _draw_map_tiles(self, show_wall: bool = False):
-        for y, row in enumerate(self.board_layout):
+        for y, row in enumerate(self._board_layout):
             for x, obj in enumerate(row):
                 if show_wall and obj == MapObject.WALL.value:
                     self._draw_sprite(self._sprite_wall, (x, y))
@@ -512,7 +524,7 @@ class DungeonCross:
                     self._draw_sprite(self._sprite_chest, (x, y))
 
     def _load_sprite(self, path: str, size_x: int = TILE_SIZE, size_y: int = TILE_SIZE) -> pygame.image:
-        logging.debug(f"Loading sprite: {path}. Size ({size_x}, {size_y}")
+        logging.debug(f"Loading sprite: {path}. Size ({size_x}, {size_y})")
         try:
             image = pygame.image.load(resource_path(path))
             return pygame.transform.scale(image, (size_x, size_x))
@@ -530,8 +542,8 @@ class DungeonCross:
 
     def _draw_frame(self):
         for i in range(1, 9):
-            hint_x = self._sprite_number[self.hint_x[i - 1]]
-            hint_y = self._sprite_number[self.hint_y[i - 1]]
+            hint_x = self._sprite_number[self._hint_x[i - 1]]
+            hint_y = self._sprite_number[self._hint_y[i - 1]]
             self._screen.blit(self._sprite_frame, (i * TILE_SIZE, 0))
             self._screen.blit(self._sprite_frame, (0, i * TILE_SIZE))
             self._screen.blit(hint_x, (i * TILE_SIZE + self._font_pos_offset, self._font_pos_offset))
@@ -560,11 +572,12 @@ class DungeonCross:
         menu.add.button("Random Puzzle", action=self._menu_random_map)
 
         # True and False specify the sound system variable _sound.muted, which is why they're backwards
-        menu.add.selector(
+        self._menu_sound_selector = menu.add.selector(
             "Sound: ", 
             [("Off", True), ["On", False]], 
             onchange=self._menu_set_mute, 
-            default=1
+            default=1,
+            selector_id='SOUND'
         )
         menu.add.vertical_fill(2)
         menu.add.text_input(
@@ -574,7 +587,8 @@ class DungeonCross:
             valid_chars=[*'0123456789'],
             onchange=self._menu_update_pid,
             onreturn=self._menu_open_map,
-            background_color = (70, 50, 0)
+            background_color = (70, 50, 0),
+            textinput_id="PUZZLE_ID"
         )
         menu.add.button("Load Puzzle", action=self._menu_open_map)
         menu.add.vertical_fill(2)
@@ -638,25 +652,8 @@ def show_splash(screen: pygame.Surface):
 
 def main():
 
-    # setup logging
-    lfmt = "%(levelname)s [%(funcName)s]: %(message)s"
-    log_file_name = 'dungeon_cross.log'
-    try:
-        # When compiled as .app file on Mac, sandboxing will have the logical working directory '/'
-        # meaning creating logfiles in the same directory will fail. We'll need to redirect the 
-        # log output to the standard logfile location for user apps.
-        if sys.platform == 'darwin':
-            log_dir = os.path.expanduser('~/Library/Logs/')
-            log_path = log_dir + log_file_name
-            logging.basicConfig(filename=log_path, level=G_LOG_LEVEL, filemode='w', format=lfmt)
-        else:
-            logging.basicConfig(filename=log_file_name, level=G_LOG_LEVEL, filemode='w', format=lfmt)
-    except OSError as e:
-        logging.basicConfig(level=logging.INFO, format=lfmt)
-        logging.error(e)
-    logging.info("PROGRAM START")
-    log_system.log_sys_info()
-    sys.excepthook = log_system.exception_handler_hook
+    # init logging
+    log_system.init_logging(G_LOG_LEVEL)
 
     # init pygame
     pygame.init()
@@ -666,7 +663,7 @@ def main():
     sound.load_music_all()
     sound.shuffle()
     sound.set_volume(35)
-    sound.play_music_all()
+    sound.play_next_background_song()
 
     # create display window
     screen = pygame.display.set_mode(G_RESOLUTION)
@@ -696,6 +693,8 @@ def main():
                     logging.info("GAME EXITING")
                     game.save_game()
                     game_run = False
+                elif event.type == pygame.USEREVENT:
+                    sound.play_next_background_song()
                 else:
                     game_run = game.handle_io_event(event)
 

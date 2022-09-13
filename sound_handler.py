@@ -20,7 +20,7 @@
 import os
 import random
 import logging
-from pygame import mixer
+from pygame import mixer, USEREVENT
 from pygame import error as pygame_error
 from resource_path import resource_path
 
@@ -35,6 +35,8 @@ class SoundHandler:
         self._volume: float = 0.5
         self._music_path = music_path
         self.muted = False
+        self.song_idx = 0
+
     def load_music_all(self):
         try:
             files = os.listdir(self._music_path)
@@ -42,28 +44,35 @@ class SoundHandler:
         except PermissionError as e:
             logging.warn(f"Failed to open music directory {self._music_path}")
             raise
+
     def shuffle(self) -> None:
         random.shuffle(self._playlist)
-    def play_music_all(self):
-        if self._mixer_running:
-            if len(self._playlist) > 0:
-                if not mixer.get_init() is None:
-                    mixer.music.load(self._music_path + self._playlist[0])
-                    self._playlist.pop(0)
-                    for i in self._playlist:
-                        try:
-                            mixer.music.queue(os.path.join(self._music_path + i))
-                        except pygame_error as e:
-                            logging.warn("Couldn't open audio output device.")
-                            raise
-                    mixer.music.play(fade_ms=5000)
+
+    def play_next_background_song(self):
+        """
+        Plays the next background song in list. Sends pygame.USEREVENT + 0 when 
+        song has finsihed. Auto-increments to next song when called, so you can
+        call this function again to start the next song.
+        """
+        
+        if self._mixer_running and not mixer.get_init() is None:
+            song = self._playlist[self.song_idx]
+            logging.debug(f"Playing background song: {song}")
+            mixer.music.unload()
+            mixer.music.load(os.path.join(self._music_path, song))
+            self.song_idx = (self.song_idx + 1) % len(self._playlist)
+            mixer.music.play(fade_ms=5000)
+            mixer.music.set_endevent(USEREVENT)
+
     def set_volume(self, volume: int = 100):
         if self._mixer_running:
             vol = min(100, max(0, volume))
             mixer.music.set_volume(vol / 100)
+
     def stop_music(self):
         if self._mixer_running:
             mixer.music.stop()
+
     def load_sfx(self, sound_effect_path: str, volume: float = 0.6) -> mixer.Sound:
         if not self.muted and self._mixer_running:        
             try:
