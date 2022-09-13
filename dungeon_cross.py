@@ -40,7 +40,7 @@ from resource_path import resource_path
 from save_game import SaveFile
 from debug_timer import debug_timer
 
-VERSION = "v0.21.1"
+VERSION = "v0.21.2"
 G_LOG_LEVEL = logging.DEBUG
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)

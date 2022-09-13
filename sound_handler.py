@@ -56,13 +56,14 @@ class SoundHandler:
         """
         
         if self._mixer_running and not mixer.get_init() is None:
-            song = self._playlist[self.song_idx]
-            logging.debug(f"Playing background song: {song}")
-            mixer.music.unload()
-            mixer.music.load(os.path.join(self._music_path, song))
-            self.song_idx = (self.song_idx + 1) % len(self._playlist)
-            mixer.music.play(fade_ms=5000)
-            mixer.music.set_endevent(USEREVENT)
+            if not self.muted:
+                song = self._playlist[self.song_idx]
+                logging.debug(f"Playing background song: {song}")
+                mixer.music.unload()
+                mixer.music.load(os.path.join(self._music_path, song))
+                self.song_idx = (self.song_idx + 1) % len(self._playlist)
+                mixer.music.play(fade_ms=5000)
+                mixer.music.set_endevent(USEREVENT)
 
     def set_volume(self, volume: int = 100):
         if self._mixer_running:
