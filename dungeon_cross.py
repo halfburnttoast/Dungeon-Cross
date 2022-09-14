@@ -40,7 +40,7 @@ from resource_path import resource_path
 from save_game import SaveFile
 from debug_timer import debug_timer
 
-VERSION = "v0.21.2"
+VERSION = "v0.21.2-CB_TEST1"
 G_LOG_LEVEL = logging.DEBUG
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -102,11 +102,20 @@ class DungeonCross:
         self._font_offset = 32
         self._font_pos_offset = self._font_offset / 2
         self._menu_is_open = False
+        self._cb_mode = False
 
         # error overlay
-        self._err_overlay = pygame.Surface((TILE_SIZE, TILE_SIZE))
-        self._err_overlay.fill((255, 0, 0))
-        self._err_overlay.set_alpha(120)
+        self._err_overlay_og = pygame.Surface((TILE_SIZE, TILE_SIZE))
+        self._err_overlay_og.fill((255, 0, 0))
+        self._err_overlay_og.set_alpha(120)
+
+        # colorblind error overlay
+        self._err_overlay_cb = pygame.Surface((TILE_SIZE, TILE_SIZE))
+        self._err_overlay_cb.fill((0, 200, 200))
+        self._err_overlay_cb.set_alpha(150)
+
+        # set default error overlay
+        self._err_overlay = self._err_overlay_og
 
         # limit overlay
         self._limit_overlay = pygame.Surface((TILE_SIZE, TILE_SIZE))
@@ -114,12 +123,18 @@ class DungeonCross:
         self._limit_overlay.set_alpha(120)
 
         # load sprites
-        self._sprite_wall  = self._load_sprite('sprite/wall3.png')
+        self._sprite_enemy_cb = self._load_sprite('sprite/cb_enemy.png')
+        self._sprite_wall_cb = self._load_sprite('sprite/cb_wall.png')
+        self._sprite_mark_cb = self._load_sprite('sprite/cb_mark.png')
+        self._sprite_enemy_og = self._load_sprite('sprite/enemy.png')
+        self._sprite_wall_og = self._load_sprite('sprite/wall3.png')
+        self._sprite_mark_og = self._load_sprite('sprite/mark4.png')
+        self._sprite_wall  = self._sprite_wall_og
+        self._sprite_mark  = self._sprite_mark_og
+        self._sprite_enemy = self._sprite_enemy_og
         self._sprite_floor = self._load_sprite('sprite/floor4.png')
-        self._sprite_enemy = self._load_sprite('sprite/enemy.png')
         self._sprite_chest = self._load_sprite('sprite/chest.png')
         self._sprite_frame = self._load_sprite('sprite/frame3.png')
-        self._sprite_mark  = self._load_sprite('sprite/mark4.png')
         self._sprite_book  = self._load_sprite('sprite/book.png')
         self._sprite_win   = self._load_sprite('sprite/win.png', G_RESOLUTION[0], G_RESOLUTION[1])
         self._sprite_number = []
@@ -252,12 +267,25 @@ class DungeonCross:
         try:
             data = self._save_file.get_save_data()
             self._player_wins = data["WINS"]
+
+            # if version matches, load settings
             if data["VERSION"] == VERSION:
+
+                # sound settings
                 self._sound.muted = data["MUTE"]
                 if self._sound.muted:
                     self._sound.stop_music()
                     self._sound.muted = True
                     self._menu.get_widget("SOUND").set_value("Off")
+
+                # colorblind mode settings
+                self._cb_mode = data["CB_MODE"]
+                if self._cb_mode:
+                    w = self._menu.get_widget("CB_MODE")
+                    w.set_value("On")
+                    w._onchange((), True)
+
+                # open the last puzzle and reload user progress
                 self.open_puzzle(data["LEVEL"])
                 if data["MAPHASH"] == self._map_hash:
                     self._placed_walls = data["PROGRESS"]
@@ -277,6 +305,7 @@ class DungeonCross:
             save_data['VERSION'] = VERSION
             save_data['WINS'] = self._player_wins
             save_data['MUTE'] = self._sound.muted
+            save_data['CB_MODE'] = self._cb_mode
             save_data["LEVEL"] = self.get_puzzle_id()
             save_data["PROGRESS"] = self._placed_walls
             save_data["MAPHASH"] = self._map_hash
@@ -313,6 +342,22 @@ class DungeonCross:
         pygame.event.post(pygame.event.Event(pygame.QUIT))
         self._menu_is_open = False
         self._menu.disable()
+    def _menu_change_cb_mode(self, selection: tuple, val: bool) -> None:
+        try:
+            if val:
+                self._sprite_wall  = self._sprite_wall_cb
+                self._sprite_mark  = self._sprite_mark_cb
+                self._sprite_enemy = self._sprite_enemy_cb
+                self._err_overlay = self._err_overlay_cb
+                self._cb_mode = True
+            else:
+                self._sprite_wall  = self._sprite_wall_og
+                self._sprite_mark  = self._sprite_mark_og
+                self._sprite_enemy = self._sprite_enemy_og
+                self._err_overlay = self._err_overlay_og
+                self._cb_mode = False
+        except AttributeError as e:
+            logging.debug(f"Error switching color modes: {e}")
 
     ### Internal game methods
     def _undo_action(self):
@@ -577,7 +622,14 @@ class DungeonCross:
             [("Off", True), ["On", False]], 
             onchange=self._menu_set_mute, 
             default=1,
-            selector_id='SOUND'
+            selector_id="SOUND"
+        )
+        self._menu_colorblind_selector = menu.add.selector(
+            "Colorblind Mode: ",
+            [("On", True), ("Off", False)],
+            onchange=self._menu_change_cb_mode,
+            default=1,
+            selector_id="CB_MODE"
         )
         menu.add.vertical_fill(2)
         menu.add.text_input(
