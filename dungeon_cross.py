@@ -292,8 +292,8 @@ class DungeonCross:
                 self._cb_mode = data["CB_MODE"]
                 if self._cb_mode:
                     w = self._menu.get_widget("CB_MODE")
-                    w.set_value("On")
-                    w._onchange((), True)
+                    w.set_value(True)
+                    w._onchange(True)
                 
                 # power save settings
                 self._power_save = data["PW_SAVE"]
@@ -363,7 +363,7 @@ class DungeonCross:
         self._menu.disable()
     def _menu_power_save(self, val: bool) -> None:
         self._power_save = val
-    def _menu_change_cb_mode(self, selection: tuple, val: bool) -> None:
+    def _menu_change_cb_mode(self, val: bool) -> None:
         try:
             if val:
                 self._sprite_wall  = self._sprite_wall_cb
@@ -651,12 +651,12 @@ class DungeonCross:
             default=1,
             selector_id="SOUND"
         )
-        self._menu_colorblind_selector = menu.add.selector(
+        self._menu_colorblind_selector = menu.add.toggle_switch(
             "Colorblind Mode: ",
-            [("On", True), ("Off", False)],
             onchange=self._menu_change_cb_mode,
-            default=1,
-            selector_id="CB_MODE"
+            default=False,
+            width=90,
+            toggleswitch_id="CB_MODE"
         )
         menu.add.toggle_switch(
             title="Power Saver: ",
