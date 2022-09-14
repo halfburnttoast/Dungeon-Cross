@@ -111,8 +111,11 @@ class DungeonCross:
 
         # colorblind error overlay
         self._err_overlay_cb = pygame.Surface((TILE_SIZE, TILE_SIZE))
-        self._err_overlay_cb.fill((0, 200, 200))
-        self._err_overlay_cb.set_alpha(150)
+        self._err_overlay_cb.fill((0, 100, 200))
+        self._err_overlay_cb.set_alpha(180)
+        _err_overlay_sprite = self._load_sprite('sprite/error.png')
+        _err_overlay_sprite.set_alpha(200)
+        self._err_overlay_cb.blit(_err_overlay_sprite, (0, 0))
 
         # set default error overlay
         self._err_overlay = self._err_overlay_og
@@ -129,10 +132,12 @@ class DungeonCross:
         self._sprite_enemy_og = self._load_sprite('sprite/enemy.png')
         self._sprite_wall_og = self._load_sprite('sprite/wall3.png')
         self._sprite_mark_og = self._load_sprite('sprite/mark4.png')
+        self._sprite_floor_og = self._load_sprite('sprite/floor4.png')
+        self._sprite_floor_cb = self._load_sprite('sprite/cb_floor2.png')
         self._sprite_wall  = self._sprite_wall_og
         self._sprite_mark  = self._sprite_mark_og
         self._sprite_enemy = self._sprite_enemy_og
-        self._sprite_floor = self._load_sprite('sprite/floor4.png')
+        self._sprite_floor = self._sprite_floor_og
         self._sprite_chest = self._load_sprite('sprite/chest.png')
         self._sprite_frame = self._load_sprite('sprite/frame3.png')
         self._sprite_book  = self._load_sprite('sprite/book.png')
@@ -348,12 +353,14 @@ class DungeonCross:
                 self._sprite_wall  = self._sprite_wall_cb
                 self._sprite_mark  = self._sprite_mark_cb
                 self._sprite_enemy = self._sprite_enemy_cb
+                self._sprite_floor = self._sprite_floor_cb
                 self._err_overlay = self._err_overlay_cb
                 self._cb_mode = True
             else:
                 self._sprite_wall  = self._sprite_wall_og
                 self._sprite_mark  = self._sprite_mark_og
                 self._sprite_enemy = self._sprite_enemy_og
+                self._sprite_floor = self._sprite_floor_og
                 self._err_overlay = self._err_overlay_og
                 self._cb_mode = False
         except AttributeError as e:
