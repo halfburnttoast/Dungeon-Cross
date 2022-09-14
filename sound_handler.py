@@ -34,7 +34,7 @@ class SoundHandler:
         self._playlist: list = []
         self._volume: float = 0.5
         self._music_path = music_path
-        self.muted = False
+        self.enabled = True
         self.song_idx = 0
 
     def load_music_all(self):
@@ -56,7 +56,7 @@ class SoundHandler:
         """
         
         if self._mixer_running and not mixer.get_init() is None:
-            if not self.muted:
+            if self.enabled:
                 song = self._playlist[self.song_idx]
                 logging.debug(f"Playing background song: {song}")
                 mixer.music.unload()
@@ -75,7 +75,7 @@ class SoundHandler:
             mixer.music.stop()
 
     def load_sfx(self, sound_effect_path: str, volume: float = 0.6) -> mixer.Sound:
-        if not self.muted and self._mixer_running:        
+        if self.enabled and self._mixer_running:        
             try:
                 snd = mixer.Sound(resource_path(sound_effect_path))
                 snd.set_volume(0.6)
@@ -86,7 +86,7 @@ class SoundHandler:
 
     def play_sfx(self, sound_effect: mixer.Sound) -> None:
         """Wrap sfx calls in a try/except block."""
-        if not self.muted and self._mixer_running:
+        if self.enabled and self._mixer_running:
             try:
                 sound_effect.play()
             except pygame_error as e:

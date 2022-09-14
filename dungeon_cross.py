@@ -41,7 +41,7 @@ from resource_path import resource_path
 from save_game import SaveFile
 from debug_timer import debug_timer
 
-VERSION = "v0.22.0-OPT_TEST_1"
+VERSION = "v0.22.0-OPT_TEST_2"
 G_LOG_LEVEL = logging.DEBUG
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -282,11 +282,11 @@ class DungeonCross:
             if data["VERSION"] == VERSION:
 
                 # sound settings
-                self._sound.muted = data["MUTE"]
-                if self._sound.muted:
+                self._sound.enabled = data["SOUND"]
+                if not self._sound.enabled:
                     self._sound.stop_music()
-                    self._sound.muted = True
-                    self._menu.get_widget("SOUND").set_value("Off")
+                    self._sound.enabled = False
+                    self._menu.get_widget("SOUND").set_value(False)
 
                 # colorblind mode settings
                 self._cb_mode = data["CB_MODE"]
@@ -321,7 +321,7 @@ class DungeonCross:
             save_data = {}
             save_data['VERSION'] = VERSION
             save_data['WINS'] = self._player_wins
-            save_data['MUTE'] = self._sound.muted
+            save_data['SOUND'] = self._sound.enabled
             save_data['CB_MODE'] = self._cb_mode
             save_data['PW_SAVE'] = self._power_save
             save_data["LEVEL"] = self.get_puzzle_id()
@@ -351,9 +351,9 @@ class DungeonCross:
         self._menu_is_open = False
         self._menu.disable()
         self.needs_display_update = True
-    def _menu_set_mute(self, selection: tuple, val: bool) -> None:
-        self._sound.muted = val
-        if self._sound.muted:
+    def _menu_set_mute(self, val: bool) -> None:
+        self._sound.enabled = val
+        if not self._sound.enabled:
             self._sound.stop_music()
         else:
             self._sound.play_next_background_song()
@@ -642,14 +642,25 @@ class DungeonCross:
         menu.add.button('Resume', action=self._menu_close)
         menu.add.button('Reset', action=self._menu_reset)
         menu.add.button("Random Puzzle", action=self._menu_random_map)
-
-        # True and False specify the sound system variable _sound.muted, which is why they're backwards
-        self._menu_sound_selector = menu.add.selector(
-            "Sound: ", 
-            [("Off", True), ["On", False]], 
+        menu.add.vertical_fill(2)
+        menu.add.text_input(
+            'Puzzle ID: ',
+            default='00000',
+            maxchar=5,
+            valid_chars=[*'0123456789'],
+            onchange=self._menu_update_pid,
+            onreturn=self._menu_open_map,
+            background_color = (70, 50, 0),
+            textinput_id="PUZZLE_ID"
+        )
+        menu.add.button("Load Puzzle", action=self._menu_open_map)
+        menu.add.vertical_fill(2)
+        self._menu_sound_selector = menu.add.toggle_switch(
+            "Sound: ",
             onchange=self._menu_set_mute, 
-            default=1,
-            selector_id="SOUND"
+            default=True,
+            width=90,
+            toggleswitch_id="SOUND"
         )
         self._menu_colorblind_selector = menu.add.toggle_switch(
             "Colorblind Mode: ",
@@ -665,18 +676,6 @@ class DungeonCross:
             onchange=self._menu_power_save,
             toggleswitch_id="PW_SAVE"
         )
-        menu.add.vertical_fill(2)
-        menu.add.text_input(
-            'Puzzle ID: ',
-            default='00000',
-            maxchar=5,
-            valid_chars=[*'0123456789'],
-            onchange=self._menu_update_pid,
-            onreturn=self._menu_open_map,
-            background_color = (70, 50, 0),
-            textinput_id="PUZZLE_ID"
-        )
-        menu.add.button("Load Puzzle", action=self._menu_open_map)
         menu.add.vertical_fill(2)
         menu.add.button("How to Play", action=self._menu_tutorial)
         menu.add.button("About", self._menu_about)
