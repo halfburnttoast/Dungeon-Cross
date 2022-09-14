@@ -114,7 +114,7 @@ class DungeonCross:
         self._err_overlay_cb.fill((0, 100, 200))
         self._err_overlay_cb.set_alpha(180)
         _err_overlay_sprite = self._load_sprite('sprite/error.png')
-        _err_overlay_sprite.set_alpha(200)
+        _err_overlay_sprite.set_alpha(120)
         self._err_overlay_cb.blit(_err_overlay_sprite, (0, 0))
 
         # set default error overlay
