@@ -40,7 +40,7 @@ from resource_path import resource_path
 from save_game import SaveFile
 from debug_timer import debug_timer
 
-VERSION = "v0.21.2-CB_TEST1"
+VERSION = "v0.22.0"
 G_LOG_LEVEL = logging.DEBUG
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -127,11 +127,11 @@ class DungeonCross:
 
         # load sprites
         self._sprite_enemy_cb = self._load_sprite('sprite/cb_enemy.png')
-        self._sprite_wall_cb = self._load_sprite('sprite/cb_wall.png')
-        self._sprite_mark_cb = self._load_sprite('sprite/cb_mark.png')
         self._sprite_enemy_og = self._load_sprite('sprite/enemy.png')
-        self._sprite_wall_og = self._load_sprite('sprite/wall3.png')
-        self._sprite_mark_og = self._load_sprite('sprite/mark4.png')
+        self._sprite_wall_cb  = self._load_sprite('sprite/cb_wall.png')
+        self._sprite_wall_og  = self._load_sprite('sprite/wall3.png')
+        self._sprite_mark_cb  = self._load_sprite('sprite/cb_mark.png')
+        self._sprite_mark_og  = self._load_sprite('sprite/mark4.png')
         self._sprite_floor_og = self._load_sprite('sprite/floor4.png')
         self._sprite_floor_cb = self._load_sprite('sprite/cb_floor2.png')
         self._sprite_wall  = self._sprite_wall_og
