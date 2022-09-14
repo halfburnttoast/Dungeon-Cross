@@ -79,6 +79,9 @@ class DungeonCross:
         self._menu_backdrop.fill((50, 50, 50))
         self._menu_backdrop.set_alpha(150)
 
+        # System settings
+        self._power_save = False
+
         # Game variables
         self.game_won = False
         self.last_puzzle_id = -1
@@ -159,7 +162,7 @@ class DungeonCross:
         """Main game update function. Should be called in main loop."""
         if not self._menu_is_open:
             self._game_handle_mouse()
-            if self.needs_display_update:
+            if not self._power_save or self.needs_display_update:
                 self._draw_game()
                 self.needs_display_update = False
         else:
@@ -291,6 +294,13 @@ class DungeonCross:
                     w = self._menu.get_widget("CB_MODE")
                     w.set_value("On")
                     w._onchange((), True)
+                
+                # power save settings
+                self._power_save = data["PW_SAVE"]
+                if self._power_save:
+                    w = self._menu.get_widget("PW_SAVE")
+                    w.set_value(True)
+                    w._onchange(True)
 
                 # open the last puzzle and reload user progress
                 self.open_puzzle(data["LEVEL"])
@@ -313,6 +323,7 @@ class DungeonCross:
             save_data['WINS'] = self._player_wins
             save_data['MUTE'] = self._sound.muted
             save_data['CB_MODE'] = self._cb_mode
+            save_data['PW_SAVE'] = self._power_save
             save_data["LEVEL"] = self.get_puzzle_id()
             save_data["PROGRESS"] = self._placed_walls
             save_data["MAPHASH"] = self._map_hash
@@ -350,6 +361,8 @@ class DungeonCross:
         pygame.event.post(pygame.event.Event(pygame.QUIT))
         self._menu_is_open = False
         self._menu.disable()
+    def _menu_power_save(self, val: bool) -> None:
+        self._power_save = val
     def _menu_change_cb_mode(self, selection: tuple, val: bool) -> None:
         try:
             if val:
@@ -644,6 +657,13 @@ class DungeonCross:
             onchange=self._menu_change_cb_mode,
             default=1,
             selector_id="CB_MODE"
+        )
+        menu.add.toggle_switch(
+            title="Power Saver: ",
+            default=False,
+            width=90,
+            onchange=self._menu_power_save,
+            toggleswitch_id="PW_SAVE"
         )
         menu.add.vertical_fill(2)
         menu.add.text_input(
