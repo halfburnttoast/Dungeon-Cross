@@ -29,6 +29,7 @@ import logging
 import hashlib
 import pygame_menu
 import pygame_menu.locals
+import pygame_menu.events
 from enum import Enum
 from collections import namedtuple
 
@@ -40,11 +41,11 @@ from resource_path import resource_path
 from save_game import SaveFile
 from debug_timer import debug_timer
 
-VERSION = "v0.22.0"
+VERSION = "v0.22.0-OPT_TEST_1"
 G_LOG_LEVEL = logging.DEBUG
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
-TARGET_FPS = 30
+TARGET_FPS = 60
 THEME_COLOR = (100, 70, 0)
 
 # Used to store a single user action for undo/redo functions
@@ -99,6 +100,7 @@ class DungeonCross:
         self._player_wins = 0
 
         # UI variables
+        self.needs_display_update = True
         self._font_offset = 32
         self._font_pos_offset = self._font_offset / 2
         self._menu_is_open = False
@@ -157,7 +159,9 @@ class DungeonCross:
         """Main game update function. Should be called in main loop."""
         if not self._menu_is_open:
             self._game_handle_mouse()
-            self._draw_game()
+            if self.needs_display_update:
+                self._draw_game()
+                self.needs_display_update = False
         else:
             self._menu.enable()
             self._menu.mainloop(self._screen, bgfun=self._draw_game)
@@ -229,6 +233,7 @@ class DungeonCross:
         """Returns false if ESCAPE key was pressed"""
         if not self._menu_is_open:
             if event.type == pygame.KEYDOWN:
+                self.needs_display_update = True
                 mods = pygame.key.get_mods()
                 shift_pressed = bool(mods & 0x1)
                 ctrl_pressed  = bool(mods & 0x40)
@@ -238,10 +243,7 @@ class DungeonCross:
                     if event.key == pygame.K_SPACE:
                         self.open_random_puzzle()
                     elif event.key == pygame.K_r:
-                        self.open_puzzle(self.get_puzzle_id())
-                    # elif event.key == pygame.K_m:
-                    #     self._sound.stop_music()
-                    #     self._sound.muted = True     
+                        self.open_puzzle(self.get_puzzle_id()) 
                     elif event.key == pygame.K_z:
                         if ctrl_pressed:
                             if not shift_pressed:
@@ -337,6 +339,7 @@ class DungeonCross:
     def _menu_close(self):
         self._menu_is_open = False
         self._menu.disable()
+        self.needs_display_update = True
     def _menu_set_mute(self, selection: tuple, val: bool) -> None:
         self._sound.muted = val
         if self._sound.muted:
@@ -438,22 +441,26 @@ class DungeonCross:
                                 self._check_board_state = True
                                 self._sound.play_sfx(self._sound_wall)
                                 update_history = True
+                                self.needs_display_update = True
                         elif self._mouse_action == MouseAction.REMOVE_WALL.value:
                             if user_tile == MapObject.WALL.value:
                                 self._placed_walls[my][mx] = MapObject.EMPTY.value
                                 self._check_board_state = True
                                 self._sound.play_sfx(self._sound_wall)
                                 update_history = True
+                                self.needs_display_update = True
                         elif self._mouse_action == MouseAction.PLACE_MARK.value:
                             if user_tile == MapObject.EMPTY.value:
                                 self._placed_walls[my][mx] = MapObject.MARK.value
                                 self._sound.play_sfx(self._sound_mark)
                                 update_history = True
+                                self.needs_display_update = True
                         elif self._mouse_action == MouseAction.REMOVE_MARK.value:
                             if user_tile == MapObject.MARK.value:
                                 self._placed_walls[my][mx] = MapObject.EMPTY.value                   
                                 self._sound.play_sfx(self._sound_mark) 
                                 update_history = True
+                                self.needs_display_update = True
                         if update_history:
 
                             # update history with this move. If we've done an undo in
@@ -743,7 +750,7 @@ def main():
         while game_run and not game.game_won:
 
             # clear screen
-            screen.fill(pygame.color.Color(0, 0, 0))
+            #screen.fill(pygame.color.Color(0, 0, 0))
 
             # handle quit events
             events = pygame.event.get()
@@ -754,6 +761,8 @@ def main():
                     game_run = False
                 elif event.type == pygame.USEREVENT:
                     sound.play_next_background_song()
+                elif event.type == pygame.ACTIVEEVENT:
+                    game.needs_display_update = True
                 else:
                     game_run = game.handle_io_event(event)
 
