@@ -41,7 +41,7 @@ from resource_path import resource_path
 from save_game import SaveFile
 from debug_timer import debug_timer
 
-VERSION = "v0.23.2-RC2"
+VERSION = "v1.0.0"
 G_LOG_LEVEL = logging.DEBUG
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -223,7 +223,7 @@ class DungeonCross:
         self._menu.get_widget("PUZZLE_ID").set_value(f"{num:05d}")
         self._menu_pid = num
         logging.debug(f"Map hash: {self._map_hash}")
-        pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num:05d} - Wins: {self._player_wins}")
+        pygame.display.set_caption(f"Dungeon Cross - {VERSION} - Puzzle #{num:05d} - Wins: {self._player_wins}")
         self.needs_display_update = True
     
     def open_random_puzzle(self):
