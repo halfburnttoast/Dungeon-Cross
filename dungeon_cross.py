@@ -224,6 +224,7 @@ class DungeonCross:
         self._menu_pid = num
         logging.debug(f"Map hash: {self._map_hash}")
         pygame.display.set_caption(f"Dungeon Cross - {VERSION} - PID #{num:05d} - Wins: {self._player_wins}")
+        self.needs_display_update = True
     
     def open_random_puzzle(self):
         """Opens a random puzzle. Will not select the same puzzle twice in a row."""
@@ -768,20 +769,25 @@ def main():
     while game_run:
         while game_run and not game.game_won:
 
-            # clear screen
-            #screen.fill(pygame.color.Color(0, 0, 0))
-
-            # handle quit events
+            # handle events
             events = pygame.event.get()
             for event in events:
+
+                # handle window quit event
                 if event.type == pygame.QUIT:
                     logging.info("GAME EXITING")
                     game.save_game()
                     game_run = False
+                
+                # handle song-end event
                 elif event.type == pygame.USEREVENT:
                     sound.play_next_background_song()
+
+                # handle window focus change event
                 elif event.type == pygame.ACTIVEEVENT:
                     game.needs_display_update = True
+
+                # otherwise, pass event to game object
                 else:
                     game_run = game.handle_io_event(event)
 
