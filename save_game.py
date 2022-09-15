@@ -56,7 +56,7 @@ class SaveFile:
                 file_dir = os.path.expanduser('~/.config/')
             else:
                 raise OSError(f"Unsupported platform: {sys.platform}")
-            file_path = file_dir + file_name
+            file_path = os.path.join(file_dir, file_name)
         else:
-            file_path = file_name
+            file_path = os.path.join('.', file_name)
         return file_path

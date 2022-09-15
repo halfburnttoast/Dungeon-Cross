@@ -41,7 +41,7 @@ from resource_path import resource_path
 from save_game import SaveFile
 from debug_timer import debug_timer
 
-VERSION = "v0.23.1"
+VERSION = "v0.23.1-RC1"
 G_LOG_LEVEL = logging.DEBUG
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -693,10 +693,10 @@ class DungeonCross:
         with open(resource_path("about.txt")) as f:
             lines = f.readlines()
         f.close()
-        menu.add.image(resource_path("sprite/enemies/hydra3.png"))
+        menu.add.image(resource_path("sprite/hydra3.png"))
         for line in lines:
             menu.add.label(line.splitlines()[0], align=pygame_menu.locals.ALIGN_LEFT)
-        menu.add.image(resource_path("sprite/enemies/hydra3.png"))
+        menu.add.image(resource_path("sprite/hydra3.png"))
         return menu
     
     def _menu_build_tutorial(self):
@@ -709,7 +709,7 @@ class DungeonCross:
         with open(resource_path("tutorial.txt")) as f:
             lines = f.readlines()
         f.close()
-        menu.add.image(resource_path("sprite/enemies/hydra3.png"))
+        menu.add.image(resource_path("sprite/hydra3.png"))
         for line in lines:
             if line.strip() == '':
                 continue
@@ -721,7 +721,7 @@ class DungeonCross:
                     print(e)
             else:
                 menu.add.label(line.splitlines()[0], align=pygame_menu.locals.ALIGN_LEFT)
-        menu.add.image(resource_path("sprite/enemies/hydra3.png"))
+        menu.add.image(resource_path("sprite/hydra3.png"))
         return menu
 
 def show_splash(screen: pygame.Surface):
