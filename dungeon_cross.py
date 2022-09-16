@@ -84,7 +84,7 @@ class DungeonCross:
 
         # Game variables
         self.game_won = False
-        self.last_puzzle_id = -1
+        self._open_puzzle_id = -1
         self._action_history = []
         self._action_history_idx = 0
         self._action_history_idx_top = 0
@@ -118,9 +118,9 @@ class DungeonCross:
         self._err_overlay_cb = pygame.Surface((TILE_SIZE, TILE_SIZE))
         self._err_overlay_cb.fill((0, 100, 200))
         self._err_overlay_cb.set_alpha(180)
-        _err_overlay_sprite = self._load_sprite('sprite/error.png')
-        _err_overlay_sprite.set_alpha(120)
-        self._err_overlay_cb.blit(_err_overlay_sprite, (0, 0))
+        err_overlay_sprite = self._load_sprite('sprite/error.png')
+        err_overlay_sprite.set_alpha(120)
+        self._err_overlay_cb.blit(err_overlay_sprite, (0, 0))
 
         # set default error overlay to "normal" (not colorblind) mode
         self._err_overlay = self._err_overlay_og
@@ -157,6 +157,16 @@ class DungeonCross:
         self._sound_wall = self._sound.load_sfx('audio/sfx/place_wall.mp3')
         self._sound_mark = self._sound.load_sfx('audio/sfx/place_mark.mp3')
         self._sound_open = self._sound.load_sfx('audio/sfx/level_open.mp3')
+
+    @property
+    def number_of_puzzles(self) -> int:
+        """Returns total number of puzzles loaded."""
+        return len(self._puzzle_book)
+    
+    @property
+    def open_puzzle_id(self) -> int:
+        """Return currently open puzzle ID number."""
+        return self._open_puzzle_id
 
     def update(self):
         """Main game update function. Should be called in main loop once per frame."""
@@ -206,13 +216,13 @@ class DungeonCross:
         self._action_history_idx_top = 0
 
         # if we attempt to load an invalid puzzle, default to puzzle 0
-        if num not in range(0, self.get_number_of_puzzles() + 1):
+        if num not in range(0, self.number_of_puzzles + 1):
             logging.error(f"Attempted to load invalid puzzle ID {num}")
             num = 0
 
         # load and setup game board
         self.game_won = False
-        self.last_puzzle_id = num
+        self._open_puzzle_id = num
         self._board_layout = self._puzzle_book[num]
         self._calc_hints()
         self._placed_walls = self._strip_walls()
@@ -229,7 +239,7 @@ class DungeonCross:
     def open_random_puzzle(self):
         """Opens a random puzzle. Will not select the same puzzle twice in a row."""
         pid = random.choice(range(0, len(self._puzzle_book)))
-        if pid == self.last_puzzle_id:
+        if pid == self.open_puzzle_id:
             pid = (pid + 1) % len(self._puzzle_book)
         self.open_puzzle(pid)
 
@@ -247,7 +257,7 @@ class DungeonCross:
                     if event.key == pygame.K_SPACE:
                         self.open_random_puzzle()
                     elif event.key == pygame.K_r:
-                        self.open_puzzle(self.get_puzzle_id()) 
+                        self.open_puzzle(self.open_puzzle_id) 
                     elif event.key == pygame.K_z:
                         if ctrl_pressed:
                             if not shift_pressed:
@@ -265,14 +275,6 @@ class DungeonCross:
                 self._game_handle_mouse(lm_event=lm, rm_event=rm)
         return True
 
-    def get_number_of_puzzles(self):
-        """Returns total number of puzzles loaded."""
-        return len(self._puzzle_book)
-    
-    def get_puzzle_id(self) -> int:
-        """Returns the ID of the currently open puzzle."""
-        return self.last_puzzle_id
-        
     ### Save game methods
     def load_save(self):
         try:
@@ -325,66 +327,29 @@ class DungeonCross:
             save_data['SOUND'] = self._sound.enabled
             save_data['CB_MODE'] = self._cb_mode
             save_data['PW_SAVE'] = self._power_save
-            save_data["LEVEL"] = self.get_puzzle_id()
+            save_data["LEVEL"] = self.open_puzzle_id
             save_data["PROGRESS"] = self._placed_walls
             save_data["MAPHASH"] = self._map_hash
             self._save_file.store_save_data(save_data)
         except Exception as e:  # temporary catchall
             logging.error(f"Could not save to save file. \n{e}")
 
+    def _load_sprite(self, path: str, size_x: int = TILE_SIZE, size_y: int = TILE_SIZE) -> pygame.image:
+        """
+        Load a sprite of a given size (size_x, size_y), returns the pygame image.
+        This should be called rather than directly calling pygame.image.load because
+        it automatically detects the correct path of the asset, whether the program 
+        is running from the main directory or if it's compiled as a standalone executable.
+        """
 
-    ### Menu callback methods. These are called directly by the pygame_menu widgets.
-    # I'd want to move these out of this file
-    def _menu_open_map(self, val = None):
-        self.open_puzzle(self._menu_pid)
-        self._menu_close()
-    def _menu_random_map(self):
-        self.open_random_puzzle()
-        self._menu_close()
-    def _menu_reset(self):
-        self.open_puzzle(self.get_puzzle_id())
-        self._menu_close()
-    def _menu_update_pid(self, value):
+        logging.debug(f"Loading sprite: {path}. Size ({size_x}, {size_y})")
         try:
-            self._menu_pid = int(value)
-        except:
-            self._menu_pid = 0
-    def _menu_close(self):
-        self._menu_is_open = False
-        self._menu.disable()
-        self.needs_display_update = True
-    def _menu_set_mute(self, val: bool) -> None:
-        self._sound.enabled = val
-        if not self._sound.enabled:
-            self._sound.stop_music()
-        else:
-            self._sound.play_next_background_song()
-    def _menu_quit(self):
-        pygame.event.post(pygame.event.Event(pygame.QUIT))
-        self._menu_is_open = False
-        self._menu.disable()
-    def _menu_power_save(self, val: bool) -> None:
-        self._power_save = val
-    def _menu_change_cb_mode(self, val: bool) -> None:
-        try:
-            if val:
-                self._sprite_wall  = self._sprite_wall_cb
-                self._sprite_mark  = self._sprite_mark_cb
-                self._sprite_enemy = self._sprite_enemy_cb
-                self._sprite_floor = self._sprite_floor_cb
-                self._err_overlay = self._err_overlay_cb
-                self._cb_mode = True
-            else:
-                self._sprite_wall  = self._sprite_wall_og
-                self._sprite_mark  = self._sprite_mark_og
-                self._sprite_enemy = self._sprite_enemy_og
-                self._sprite_floor = self._sprite_floor_og
-                self._err_overlay = self._err_overlay_og
-                self._cb_mode = False
-        except AttributeError as e:
-            logging.debug(f"Error switching color modes: {e}")
+            image = pygame.image.load(resource_path(path))
+            return pygame.transform.scale(image, (size_x, size_x))
+        except FileNotFoundError:
+            logging.critical(f"Could not open sprite: {path}")
+            raise
 
-    ### Internal game methods
     def _undo_action(self):
         """Undo a move from the user. Retains history for Redo function."""
         if self._action_history_idx > 0:
@@ -399,6 +364,8 @@ class DungeonCross:
             self._action_history_idx += 1
             self._placed_walls[action.y][action.x] = action.new_state
 
+
+    ### Draw Methods
     def _draw_game(self):
         """
         Redraws the entire game board. This should be called by the engine and not by
@@ -418,6 +385,77 @@ class DungeonCross:
             self._screen.blit(self._sprite_win, (0, 0))
         if self._menu_is_open:
             self._screen.blit(self._menu_backdrop, (0, 0))
+
+    def _draw_sprite(self, sprite: pygame.image, grid_pos: tuple):
+        """
+        Draws a grid-oriented sprite to an (x, y) position. 
+        x and y are GRID positions, not pixel coordiantes. 
+        """
+
+        pos_x = (grid_pos[0] + 1) * TILE_SIZE
+        pos_y = (grid_pos[1] + 1) * TILE_SIZE
+        self._screen.blit(sprite, (pos_x, pos_y))
+
+    def _draw_placed_objects(self):
+        """Draws all user-placed objects on board. Should be called after _draw_map_tiles"""
+        for y, row in enumerate(self._placed_walls):
+            for x, obj in enumerate(row):
+                if obj == MapObject.WALL.value:
+                    self._draw_sprite(self._sprite_wall, (x, y))
+                elif obj == MapObject.MARK.value:
+                    self._draw_sprite(self._sprite_mark, (x, y))
+
+    def _draw_map_tiles(self, show_wall: bool = False):
+        """
+        Draws the map to the board including enemies and chests.
+        If show_wall is True, it also draws the walls for the map.
+        """
+
+        for y, row in enumerate(self._board_layout):
+            for x, obj in enumerate(row):
+                if show_wall and obj == MapObject.WALL.value:
+                    self._draw_sprite(self._sprite_wall, (x, y))
+                elif obj == MapObject.ENEMY.value:
+                    self._draw_sprite(self._sprite_enemy, (x, y))
+                elif obj == MapObject.CHEST.value:
+                    self._draw_sprite(self._sprite_chest, (x, y))
+
+    def _draw_errors(self):
+        """Draws a red overlay over the hint numbers based on the values in _x_err and _y_err."""
+        for i in self._x_err:
+            self._screen.blit(self._err_overlay, ((i + 1) * TILE_SIZE, 0))
+        for i in self._y_err:
+            self._screen.blit(self._err_overlay, (0, (i + 1) * TILE_SIZE))
+
+    def _draw_limit(self):
+        """Draws a grey overlay over the hint numbers based on the values in _x_lim and _y_lim."""
+        for i in self._x_lim:
+            self._screen.blit(self._limit_overlay, ((i + 1) * TILE_SIZE, 0))
+        for i in self._y_lim:
+            self._screen.blit(self._limit_overlay, (0, (i + 1) * TILE_SIZE))
+
+    def _draw_frame(self):
+        """Draws the outer frame of the board along with the wall hints."""
+        for i in range(1, 9):
+            hint_x = self._sprite_number[self._hint_x[i - 1]]
+            hint_y = self._sprite_number[self._hint_y[i - 1]]
+            self._screen.blit(self._sprite_frame, (i * TILE_SIZE, 0))
+            self._screen.blit(self._sprite_frame, (0, i * TILE_SIZE))
+            self._screen.blit(hint_x, (i * TILE_SIZE + self._font_pos_offset, self._font_pos_offset))
+            self._screen.blit(hint_y, (self._font_pos_offset, i * TILE_SIZE + self._font_pos_offset))
+        self._screen.blit(self._sprite_frame, (0, 0))
+        self._screen.blit(self._sprite_book, (0, 0))
+
+
+    ### Mouse input methods
+    def _get_mouse_to_grid(self) -> tuple:
+        """"Snaps" the mouse position to the board grid. Returns mouse's position on grid."""
+        pos_x, pos_y = pygame.mouse.get_pos()
+        pos_x = math.floor((pos_x / TILE_SIZE) - 1)
+        pos_y = math.floor((pos_y / TILE_SIZE) - 1)
+        pos_x = max(min(8, pos_x), -1)
+        pos_y = max(min(8, pos_y), -1)
+        return(pos_x, pos_y)
 
     def _game_handle_mouse(self, lm_event: bool = False, rm_event: bool = False):
         """
@@ -509,6 +547,7 @@ class DungeonCross:
                 self._menu_is_open = True
                 logging.debug("MENU OPEN")
     
+    ### game logic
     def _check_win(self):
         """Checks to see if the user-modified board matches the puzzle book board."""
         user_board = self._strip_marks()
@@ -545,20 +584,6 @@ class DungeonCross:
         self._x_lim = [i for i, v in enumerate(x_sum) if v == self._hint_x[i]]
         self._y_lim = [i for i, v in enumerate(y_sum) if v == self._hint_y[i]]
 
-    def _draw_errors(self):
-        """Draws a red overlay over the hint numbers based on the values in _x_err and _y_err."""
-        for i in self._x_err:
-            self._screen.blit(self._err_overlay, ((i + 1) * TILE_SIZE, 0))
-        for i in self._y_err:
-            self._screen.blit(self._err_overlay, (0, (i + 1) * TILE_SIZE))
-
-    def _draw_limit(self):
-        """Draws a grey overlay over the hint numbers based on the values in _x_lim and _y_lim."""
-        for i in self._x_lim:
-            self._screen.blit(self._limit_overlay, ((i + 1) * TILE_SIZE, 0))
-        for i in self._y_lim:
-            self._screen.blit(self._limit_overlay, (0, (i + 1) * TILE_SIZE))
-
     def _strip_walls(self) -> list:
         """Removes walls from loaded puzzle. Used to generate the 'user board'."""
         out = []
@@ -584,78 +609,58 @@ class DungeonCross:
                     sum_y = sum_y + 1
             self._hint_x[x] = sum_y
 
-    def _draw_sprite(self, sprite: pygame.image, grid_pos: tuple):
-        """
-        Draws a grid-oriented sprite to an (x, y) position. 
-        x and y are GRID positions, not pixel coordiantes. 
-        """
 
-        pos_x = (grid_pos[0] + 1) * TILE_SIZE
-        pos_y = (grid_pos[1] + 1) * TILE_SIZE
-        self._screen.blit(sprite, (pos_x, pos_y))
-
-    def _draw_placed_objects(self):
-        """Draws all user-placed objects on board. Should be called after _draw_map_tiles"""
-        for y, row in enumerate(self._placed_walls):
-            for x, obj in enumerate(row):
-                if obj == MapObject.WALL.value:
-                    self._draw_sprite(self._sprite_wall, (x, y))
-                elif obj == MapObject.MARK.value:
-                    self._draw_sprite(self._sprite_mark, (x, y))
-
-    def _draw_map_tiles(self, show_wall: bool = False):
-        """
-        Draws the map to the board including enemies and chests.
-        If show_wall is True, it also draws the walls for the map.
-        """
-
-        for y, row in enumerate(self._board_layout):
-            for x, obj in enumerate(row):
-                if show_wall and obj == MapObject.WALL.value:
-                    self._draw_sprite(self._sprite_wall, (x, y))
-                elif obj == MapObject.ENEMY.value:
-                    self._draw_sprite(self._sprite_enemy, (x, y))
-                elif obj == MapObject.CHEST.value:
-                    self._draw_sprite(self._sprite_chest, (x, y))
-
-    def _load_sprite(self, path: str, size_x: int = TILE_SIZE, size_y: int = TILE_SIZE) -> pygame.image:
-        """
-        Load a sprite of a given size (size_x, size_y), returns the pygame image.
-        This should be called rather than directly calling pygame.image.load because
-        it automatically detects the correct path of the asset, whether the program 
-        is running from the main directory or if it's compiled as a standalone executable.
-        """
-
-        logging.debug(f"Loading sprite: {path}. Size ({size_x}, {size_y})")
+    ### Methods for building the menus. I'd love to move these methods out of this file because they look dumb.
+    # Menu callback methods. These are called directly by the pygame_menu widgets.
+    def _menu_open_map(self, val = None):
+        self.open_puzzle(self._menu_pid)
+        self._menu_close()
+    def _menu_random_map(self):
+        self.open_random_puzzle()
+        self._menu_close()
+    def _menu_reset(self):
+        self.open_puzzle(self.open_puzzle_id())
+        self._menu_close()
+    def _menu_update_pid(self, value):
         try:
-            image = pygame.image.load(resource_path(path))
-            return pygame.transform.scale(image, (size_x, size_x))
-        except FileNotFoundError:
-            logging.critical(f"Could not open sprite: {path}")
-            raise
+            self._menu_pid = int(value)
+        except:
+            self._menu_pid = 0
+    def _menu_close(self):
+        self._menu_is_open = False
+        self._menu.disable()
+        self.needs_display_update = True
+    def _menu_set_mute(self, val: bool) -> None:
+        self._sound.enabled = val
+        if not self._sound.enabled:
+            self._sound.stop_music()
+        else:
+            self._sound.play_next_background_song()
+    def _menu_quit(self):
+        pygame.event.post(pygame.event.Event(pygame.QUIT))
+        self._menu_is_open = False
+        self._menu.disable()
+    def _menu_power_save(self, val: bool) -> None:
+        self._power_save = val
+    def _menu_change_cb_mode(self, val: bool) -> None:
+        try:
+            if val:
+                self._sprite_wall  = self._sprite_wall_cb
+                self._sprite_mark  = self._sprite_mark_cb
+                self._sprite_enemy = self._sprite_enemy_cb
+                self._sprite_floor = self._sprite_floor_cb
+                self._err_overlay = self._err_overlay_cb
+                self._cb_mode = True
+            else:
+                self._sprite_wall  = self._sprite_wall_og
+                self._sprite_mark  = self._sprite_mark_og
+                self._sprite_enemy = self._sprite_enemy_og
+                self._sprite_floor = self._sprite_floor_og
+                self._err_overlay = self._err_overlay_og
+                self._cb_mode = False
+        except AttributeError as e:
+            logging.warning(f"Error switching color modes: {e}")
 
-    def _get_mouse_to_grid(self) -> tuple:
-        """"Snaps" the mouse position to the board grid. Returns mouse's position on grid."""
-        pos_x, pos_y = pygame.mouse.get_pos()
-        pos_x = math.floor((pos_x / TILE_SIZE) - 1)
-        pos_y = math.floor((pos_y / TILE_SIZE) - 1)
-        pos_x = max(min(8, pos_x), -1)
-        pos_y = max(min(8, pos_y), -1)
-        return(pos_x, pos_y)
-
-    def _draw_frame(self):
-        """Draws the outer frame of the board along with the wall hints."""
-        for i in range(1, 9):
-            hint_x = self._sprite_number[self._hint_x[i - 1]]
-            hint_y = self._sprite_number[self._hint_y[i - 1]]
-            self._screen.blit(self._sprite_frame, (i * TILE_SIZE, 0))
-            self._screen.blit(self._sprite_frame, (0, i * TILE_SIZE))
-            self._screen.blit(hint_x, (i * TILE_SIZE + self._font_pos_offset, self._font_pos_offset))
-            self._screen.blit(hint_y, (self._font_pos_offset, i * TILE_SIZE + self._font_pos_offset))
-        self._screen.blit(self._sprite_frame, (0, 0))
-        self._screen.blit(self._sprite_book, (0, 0))
-    
-    # Methods for building the menus. I'd love to move these methods out of this file because they look dumb.
     def _menu_build_theme(self) -> pygame_menu.Theme:
         pygame_menu.widgets.MENUBAR_STYLE_UNDERLINE_TITLE
         theme: pygame_menu.Theme = pygame_menu.themes.THEME_DARK.copy()
