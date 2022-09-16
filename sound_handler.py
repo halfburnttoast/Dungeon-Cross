@@ -38,6 +38,7 @@ class SoundHandler:
         self.song_idx = 0
 
     def load_music_all(self):
+        """Loads all music in the _music_path directory."""
         try:
             files = os.listdir(self._music_path)
             self._playlist = [x for x in files if '.mp3' in x]
@@ -46,6 +47,7 @@ class SoundHandler:
             raise
 
     def shuffle(self) -> None:
+        """Shuffles song playlist."""
         random.shuffle(self._playlist)
 
     def play_next_background_song(self):
@@ -66,15 +68,22 @@ class SoundHandler:
                 mixer.music.set_endevent(USEREVENT)
 
     def set_volume(self, volume: int = 100):
+        """Sets the music volume to a value between 0 and 100."""
         if self._mixer_running:
             vol = min(100, max(0, volume))
             mixer.music.set_volume(vol / 100)
 
     def stop_music(self):
+        """Immediately stop music, no fadeout."""
         if self._mixer_running:
             mixer.music.stop()
 
     def load_sfx(self, sound_effect_path: str, volume: float = 0.6) -> mixer.Sound:
+        """
+        If the SoundHandler is enabled and the mixer is running, load
+        all the sound effect files in the given path.
+        """
+
         if self.enabled and self._mixer_running:        
             try:
                 snd = mixer.Sound(resource_path(sound_effect_path))
@@ -85,7 +94,11 @@ class SoundHandler:
                 raise
 
     def play_sfx(self, sound_effect: mixer.Sound) -> None:
-        """Wrap sfx calls in a try/except block."""
+        """
+        Play a sound effect file (of type mixer.Sound).
+        Wraps sfx calls in a try/except block.
+        """
+
         if self.enabled and self._mixer_running:
             try:
                 sound_effect.play()

@@ -2,7 +2,7 @@ import logging
 from typing import Callable
 
 def debug_timer(func: Callable) -> Callable:
-    """Debug timer decorator. Outputs to console."""
+    """Debug timer decorator. Outputs to log file."""
     def timer(*args):
         from time import time
         init_time = time()

@@ -27,13 +27,15 @@ class SaveFile:
         self._save_path: str = self._get_save_path(save_file_name)
 
     def get_save_data(self) -> dict:
+        """Returns dict of the savegame data in the json file."""
         logging.info(f"Loading save file: {self._save_path}.")
         save_file = open(self._save_path, 'r')
         data = json.load(save_file)
         save_file.close()
         return data
 
-    def store_save_data(self, data: dict):
+    def store_save_data(self, data: dict) -> None:
+        """Saves dict of savegame data to json file."""
         logging.info(f"Saving data to save file: {self._save_path}")
         save_file = open(self._save_path, 'w')
         json.dump(data, save_file)

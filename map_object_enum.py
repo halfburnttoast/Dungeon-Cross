@@ -20,6 +20,7 @@
 from enum import Enum
 
 class MapObject(Enum):
+    """ENUM of map object codes."""
     EMPTY = 0
     WALL  = 1
     ENEMY = 2

@@ -122,15 +122,15 @@ class DungeonCross:
         _err_overlay_sprite.set_alpha(120)
         self._err_overlay_cb.blit(_err_overlay_sprite, (0, 0))
 
-        # set default error overlay
+        # set default error overlay to "normal" (not colorblind) mode
         self._err_overlay = self._err_overlay_og
 
-        # limit overlay
+        # limit overlay, used to show when a row/column has the needed number of walls
         self._limit_overlay = pygame.Surface((TILE_SIZE, TILE_SIZE))
         self._limit_overlay.fill((0, 0, 0))
         self._limit_overlay.set_alpha(120)
 
-        # load sprites
+        # load sprites for both normal and colorblind modes
         self._sprite_enemy_cb = self._load_sprite('sprite/cb_enemy.png')
         self._sprite_enemy_og = self._load_sprite('sprite/enemy.png')
         self._sprite_wall_cb  = self._load_sprite('sprite/cb_wall.png')
@@ -159,7 +159,7 @@ class DungeonCross:
         self._sound_open = self._sound.load_sfx('audio/sfx/level_open.mp3')
 
     def update(self):
-        """Main game update function. Should be called in main loop."""
+        """Main game update function. Should be called in main loop once per frame."""
         if not self._menu_is_open:
             self._game_handle_mouse()
             if not self._power_save or self.needs_display_update:
@@ -171,7 +171,7 @@ class DungeonCross:
 
     @debug_timer
     def load_puzzle_book(self, file_name: str = "puzzles.json.gz"):
-        """Loads a JSON file containing the puzzle data. Puzzles are stored as a list of lists."""
+        """Loads a gzipped JSON file containing the puzzle data. Puzzles are stored as a list of lists."""
         logging.info(f"Opening puzzle book: {file_name}.")
         try:
             with gzip.open(resource_path(file_name), 'r') as f:
@@ -234,7 +234,7 @@ class DungeonCross:
         self.open_puzzle(pid)
 
     def handle_io_event(self, event: pygame.event.Event) -> bool:
-        """Returns false if ESCAPE key was pressed"""
+        """Pass pygame events to this function. Returns false if ESCAPE key was pressed."""
         if not self._menu_is_open:
             if event.type == pygame.KEYDOWN:
                 self.needs_display_update = True
@@ -329,11 +329,12 @@ class DungeonCross:
             save_data["PROGRESS"] = self._placed_walls
             save_data["MAPHASH"] = self._map_hash
             self._save_file.store_save_data(save_data)
-        except Exception as e:
-            logging.error(f"Could not save to save file \n{e}")
+        except Exception as e:  # temporary catchall
+            logging.error(f"Could not save to save file. \n{e}")
 
 
-    ### Menu callback methods
+    ### Menu callback methods. These are called directly by the pygame_menu widgets.
+    # I'd want to move these out of this file
     def _menu_open_map(self, val = None):
         self.open_puzzle(self._menu_pid)
         self._menu_close()
@@ -399,6 +400,12 @@ class DungeonCross:
             self._placed_walls[action.y][action.x] = action.new_state
 
     def _draw_game(self):
+        """
+        Redraws the entire game board. This should be called by the engine and not by
+        the user. This function should only run when there has been a change to the 
+        game board itself, or if the window has changed focus states.
+        """
+        
         self._draw_frame()
         for y in range(1, 9):
             for x in range(1, 9):
@@ -415,7 +422,10 @@ class DungeonCross:
     def _game_handle_mouse(self, lm_event: bool = False, rm_event: bool = False):
         """
         Handles all mouse input/actions. If a user-placed wall is changed, it will automatically
-        call the routines to check for a win condition or if an error is made. 
+        call the routines to check for a win condition or if an error is made.
+
+        Modifies: 
+            self._placed_walls
         """
 
         mx, my      = self._get_mouse_to_grid()
@@ -536,14 +546,14 @@ class DungeonCross:
         self._y_lim = [i for i, v in enumerate(y_sum) if v == self._hint_y[i]]
 
     def _draw_errors(self):
-        """Draws a red overlay over the hint numbers based on the values in x_err and y_err"""
+        """Draws a red overlay over the hint numbers based on the values in _x_err and _y_err."""
         for i in self._x_err:
             self._screen.blit(self._err_overlay, ((i + 1) * TILE_SIZE, 0))
         for i in self._y_err:
             self._screen.blit(self._err_overlay, (0, (i + 1) * TILE_SIZE))
 
     def _draw_limit(self):
-        """Draws a red overlay over the hint numbers based on the values in x_err and y_err"""
+        """Draws a grey overlay over the hint numbers based on the values in _x_lim and _y_lim."""
         for i in self._x_lim:
             self._screen.blit(self._limit_overlay, ((i + 1) * TILE_SIZE, 0))
         for i in self._y_lim:
@@ -557,13 +567,14 @@ class DungeonCross:
         return out
 
     def _strip_marks(self) -> list:
-        """Removes all user-placed marks. Used by _check_win"""
+        """Returns a list of the board with all user-placed marks removed. Used by _check_win"""
         out = []
         for row in self._placed_walls:
             out.append([v if v != MapObject.MARK.value else MapObject.EMPTY.value for v in row])
         return out        
 
-    def _calc_hints(self):
+    def _calc_hints(self) -> None:
+        """Calculates the hint numbers for the border. Updates _hint_x and _hint_y"""
         for i, v in enumerate(self._board_layout):
             self._hint_y[i] = v.count(MapObject.WALL.value)
         for x in range(8):
@@ -574,11 +585,17 @@ class DungeonCross:
             self._hint_x[x] = sum_y
 
     def _draw_sprite(self, sprite: pygame.image, grid_pos: tuple):
+        """
+        Draws a grid-oriented sprite to an (x, y) position. 
+        x and y are GRID positions, not pixel coordiantes. 
+        """
+
         pos_x = (grid_pos[0] + 1) * TILE_SIZE
         pos_y = (grid_pos[1] + 1) * TILE_SIZE
         self._screen.blit(sprite, (pos_x, pos_y))
 
     def _draw_placed_objects(self):
+        """Draws all user-placed objects on board. Should be called after _draw_map_tiles"""
         for y, row in enumerate(self._placed_walls):
             for x, obj in enumerate(row):
                 if obj == MapObject.WALL.value:
@@ -587,6 +604,11 @@ class DungeonCross:
                     self._draw_sprite(self._sprite_mark, (x, y))
 
     def _draw_map_tiles(self, show_wall: bool = False):
+        """
+        Draws the map to the board including enemies and chests.
+        If show_wall is True, it also draws the walls for the map.
+        """
+
         for y, row in enumerate(self._board_layout):
             for x, obj in enumerate(row):
                 if show_wall and obj == MapObject.WALL.value:
@@ -597,6 +619,13 @@ class DungeonCross:
                     self._draw_sprite(self._sprite_chest, (x, y))
 
     def _load_sprite(self, path: str, size_x: int = TILE_SIZE, size_y: int = TILE_SIZE) -> pygame.image:
+        """
+        Load a sprite of a given size (size_x, size_y), returns the pygame image.
+        This should be called rather than directly calling pygame.image.load because
+        it automatically detects the correct path of the asset, whether the program 
+        is running from the main directory or if it's compiled as a standalone executable.
+        """
+
         logging.debug(f"Loading sprite: {path}. Size ({size_x}, {size_y})")
         try:
             image = pygame.image.load(resource_path(path))
@@ -606,6 +635,7 @@ class DungeonCross:
             raise
 
     def _get_mouse_to_grid(self) -> tuple:
+        """"Snaps" the mouse position to the board grid. Returns mouse's position on grid."""
         pos_x, pos_y = pygame.mouse.get_pos()
         pos_x = math.floor((pos_x / TILE_SIZE) - 1)
         pos_y = math.floor((pos_y / TILE_SIZE) - 1)
@@ -614,6 +644,7 @@ class DungeonCross:
         return(pos_x, pos_y)
 
     def _draw_frame(self):
+        """Draws the outer frame of the board along with the wall hints."""
         for i in range(1, 9):
             hint_x = self._sprite_number[self._hint_x[i - 1]]
             hint_y = self._sprite_number[self._hint_y[i - 1]]
@@ -624,6 +655,7 @@ class DungeonCross:
         self._screen.blit(self._sprite_frame, (0, 0))
         self._screen.blit(self._sprite_book, (0, 0))
     
+    # Methods for building the menus. I'd love to move these methods out of this file because they look dumb.
     def _menu_build_theme(self) -> pygame_menu.Theme:
         pygame_menu.widgets.MENUBAR_STYLE_UNDERLINE_TITLE
         theme: pygame_menu.Theme = pygame_menu.themes.THEME_DARK.copy()
@@ -724,8 +756,14 @@ class DungeonCross:
         menu.add.image(resource_path("sprite/hydra3.png"))
         return menu
 
+
 def show_splash(screen: pygame.Surface):
-    """Shows splash screen while waiting"""
+    """
+    Shows splash screen while loading. 
+    Automatically calls pygame.display.update. 
+    Only needs be called once.
+    """
+
     image = pygame.image.load(resource_path('sprite/splash.png'))
     sxm = round(image.get_width() / 2)
     sym = round(image.get_height() / 2)
