@@ -41,8 +41,8 @@ from resource_path import resource_path
 from save_game import SaveFile
 from debug_timer import debug_timer
 
-VERSION = "v1.0.0"
-G_LOG_LEVEL = logging.DEBUG
+VERSION = "v1.0.1"
+G_LOG_LEVEL = logging.INFO
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 60
@@ -796,6 +796,7 @@ def main():
 
     # create display window
     screen = pygame.display.set_mode(G_RESOLUTION)
+    pygame.display.set_allow_screensaver = True
     show_splash(screen)
 
     # internal timer for FPS regulation
