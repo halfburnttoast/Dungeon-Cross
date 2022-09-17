@@ -35,10 +35,18 @@ class SoundHandler:
         self._volume: float = 0.5
         self._music_path = music_path
         self.enabled = True
-        self.song_idx = 0
+        self._song_idx = 0
+    
+    @property
+    def song_idx(self) -> int:
+        return self._song_idx
+
+    @song_idx.setter
+    def song_idx(self, num: int) -> None:
+        self._song_idx = (num % len(self._playlist))
 
     def load_music_all(self):
-        """Loads all music in the _music_path directory."""
+        """Loads all music in the _music_path directory. """
         try:
             files = os.listdir(self._music_path)
             self._playlist = [x for x in files if '.mp3' in x]
@@ -59,11 +67,11 @@ class SoundHandler:
         
         if self._mixer_running and not mixer.get_init() is None:
             if self.enabled:
-                song = self._playlist[self.song_idx]
+                song = self._playlist[self._song_idx]
                 logging.debug(f"Playing background song: {song}")
                 mixer.music.unload()
                 mixer.music.load(os.path.join(self._music_path, song))
-                self.song_idx = (self.song_idx + 1) % len(self._playlist)
+                self._song_idx = (self._song_idx + 1) % len(self._playlist)
                 mixer.music.play(fade_ms=5000)
                 mixer.music.set_endevent(USEREVENT)
 

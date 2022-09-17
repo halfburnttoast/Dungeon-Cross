@@ -30,7 +30,6 @@ import hashlib
 import pygame_menu
 import pygame_menu.locals
 import pygame_menu.events
-from enum import Enum
 from collections import namedtuple
 
 # local includes
@@ -40,8 +39,9 @@ from map_object_enum import MapObject
 from resource_path import resource_path
 from save_game import SaveFile
 from debug_timer import debug_timer
+from mouse_action_enum import MouseAction
 
-VERSION = "v1.0.1"
+VERSION = "v1.0.2"
 G_LOG_LEVEL = logging.INFO
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -51,18 +51,8 @@ THEME_COLOR = (100, 70, 0)
 # Used to store a single user action for undo/redo functions
 HistoryAction = namedtuple("HistoryAction", ['x', 'y', 'old_state', 'new_state'])
 
-class MouseAction(Enum):
-    """Mouse action ENUM"""
-    NONE        = 0
-    PLACE_WALL  = 1
-    PLACE_MARK  = 2
-    REMOVE_WALL = 3
-    REMOVE_MARK = 4
-    MARK        = 5
-    MENU_ACTION = 6
-
 class DungeonCross:
-    def __init__(self, screen, sound):
+    def __init__(self, screen: pygame.Surface, sound: sound_handler.SoundHandler) -> None:
 
         # I/O Objects
         self._screen: pygame.Surface = screen
@@ -103,7 +93,7 @@ class DungeonCross:
         self._player_wins = 0
 
         # UI variables
-        self.needs_display_update = True
+        self._needs_display_update = True
         self._font_offset = 32
         self._font_pos_offset = self._font_offset / 2
         self._menu_is_open = False
@@ -164,17 +154,26 @@ class DungeonCross:
         return len(self._puzzle_book)
     
     @property
-    def open_puzzle_id(self) -> int:
+    def current_puzzle_id(self) -> int:
         """Return currently open puzzle ID number."""
         return self._open_puzzle_id
+
+    @property
+    def needs_display_update(self) -> bool:
+        return self._needs_display_update
+    
+    @needs_display_update.setter
+    def needs_display_update(self, val: bool):
+        if val:
+            self._needs_display_update = True
 
     def update(self):
         """Main game update function. Should be called in main loop once per frame."""
         if not self._menu_is_open:
             self._game_handle_mouse()
-            if not self._power_save or self.needs_display_update:
+            if not self._power_save or self._needs_display_update:
                 self._draw_game()
-                self.needs_display_update = False
+                self._needs_display_update = False
         else:
             self._menu.enable()
             self._menu.mainloop(self._screen, bgfun=self._draw_game)
@@ -228,18 +227,18 @@ class DungeonCross:
         self._placed_walls = self._strip_walls()
         self._check_board_state = False
         self._sound.play_sfx(self._sound_open)
-        self._check_for_errors()
+        self._update_hint_vars()
         self._map_hash = hashlib.sha256(repr(self._board_layout).encode()).hexdigest()
         self._menu.get_widget("PUZZLE_ID").set_value(f"{num:05d}")
         self._menu_pid = num
         logging.debug(f"Map hash: {self._map_hash}")
         pygame.display.set_caption(f"Dungeon Cross - {VERSION} - Puzzle #{num:05d} - Wins: {self._player_wins}")
-        self.needs_display_update = True
+        self._needs_display_update = True
     
     def open_random_puzzle(self):
         """Opens a random puzzle. Will not select the same puzzle twice in a row."""
         pid = random.choice(range(0, len(self._puzzle_book)))
-        if pid == self.open_puzzle_id:
+        if pid == self.current_puzzle_id:
             pid = (pid + 1) % len(self._puzzle_book)
         self.open_puzzle(pid)
 
@@ -257,18 +256,18 @@ class DungeonCross:
                     if event.key == pygame.K_SPACE:
                         self.open_random_puzzle()
                     elif event.key == pygame.K_r:
-                        self.open_puzzle(self.open_puzzle_id) 
+                        self.open_puzzle(self.current_puzzle_id) 
                     elif event.key == pygame.K_z:
                         if ctrl_pressed:
                             if not shift_pressed:
                                 self._undo_action()
-                                self._check_for_errors()
+                                self._update_hint_vars()
                             else:
                                 self._redo_action()
-                                self._check_for_errors()
+                                self._update_hint_vars()
                     elif event.key == pygame.K_y and ctrl_pressed:
                         self._redo_action()
-                        self._check_for_errors()                        
+                        self._update_hint_vars()                        
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 lm = event.button == 1
                 rm = event.button == 3
@@ -309,7 +308,7 @@ class DungeonCross:
                 self.open_puzzle(data["LEVEL"])
                 if data["MAPHASH"] == self._map_hash:
                     self._placed_walls = data["PROGRESS"]
-                    self._check_for_errors()
+                    self._update_hint_vars()
                 else:
                     logging.warning("Map hash invalid for puzzle ID.")
                     self.open_random_puzzle()
@@ -327,7 +326,7 @@ class DungeonCross:
             save_data['SOUND'] = self._sound.enabled
             save_data['CB_MODE'] = self._cb_mode
             save_data['PW_SAVE'] = self._power_save
-            save_data["LEVEL"] = self.open_puzzle_id
+            save_data["LEVEL"] = self.current_puzzle_id
             save_data["PROGRESS"] = self._placed_walls
             save_data["MAPHASH"] = self._map_hash
             self._save_file.store_save_data(save_data)
@@ -371,6 +370,13 @@ class DungeonCross:
         Redraws the entire game board. This should be called by the engine and not by
         the user. This function should only run when there has been a change to the 
         game board itself, or if the window has changed focus states.
+
+        Render processs goes like:
+            1. Draw outer hint frame
+            2. Draw the map tiles (minus the walls) from the puzzle book answer
+            3. Draw the user-placed walls/marks
+            4. Draw the error overlays on the hint frame
+            5. Draw the limit overlays on the hint frame
         """
         
         self._draw_frame()
@@ -389,7 +395,7 @@ class DungeonCross:
     def _draw_sprite(self, sprite: pygame.image, grid_pos: tuple):
         """
         Draws a grid-oriented sprite to an (x, y) position. 
-        x and y are GRID positions, not pixel coordiantes. 
+        x and y are GRID positions, not pixel coordinates. 
         """
 
         pos_x = (grid_pos[0] + 1) * TILE_SIZE
@@ -538,7 +544,7 @@ class DungeonCross:
 
             # if a user wall has changed, check for errors/win condition
             if self._check_board_state:
-                self._check_for_errors()
+                self._update_hint_vars()
                 self._check_win()
                 self._check_board_state = False
         elif mx == -1 and my == -1:      # if user has clicked on book icon
@@ -556,7 +562,7 @@ class DungeonCross:
             self.game_won = True
             self._player_wins += 1
     
-    def _check_for_errors(self):
+    def _update_hint_vars(self):
         """
         Generates the sum of user-placed walls by row and column. Checks to see 
         if any of those user values exceed the generated hints from the puzzle.
@@ -619,7 +625,7 @@ class DungeonCross:
         self.open_random_puzzle()
         self._menu_close()
     def _menu_reset(self):
-        self.open_puzzle(self.open_puzzle_id())
+        self.open_puzzle(self.current_puzzle_id())
         self._menu_close()
     def _menu_update_pid(self, value):
         try:
@@ -642,7 +648,7 @@ class DungeonCross:
         self._menu.disable()
     def _menu_power_save(self, val: bool) -> None:
         self._power_save = val
-    def _menu_change_cb_mode(self, val: bool) -> None:
+    def _menu_set_cb_mode(self, val: bool) -> None:
         try:
             if val:
                 self._sprite_wall  = self._sprite_wall_cb
@@ -660,7 +666,6 @@ class DungeonCross:
                 self._cb_mode = False
         except AttributeError as e:
             logging.warning(f"Error switching color modes: {e}")
-
     def _menu_build_theme(self) -> pygame_menu.Theme:
         pygame_menu.widgets.MENUBAR_STYLE_UNDERLINE_TITLE
         theme: pygame_menu.Theme = pygame_menu.themes.THEME_DARK.copy()
@@ -668,7 +673,6 @@ class DungeonCross:
         theme.widget_font_shadow = True
         theme.widget_font_size = 20
         return theme
-    
     def _menu_build_main(self) -> pygame_menu.Menu:
         menu: pygame_menu.Menu = pygame_menu.Menu(
             "Dungeon Cross", 
@@ -702,7 +706,7 @@ class DungeonCross:
         )
         self._menu_colorblind_selector = menu.add.toggle_switch(
             "Colorblind Mode: ",
-            onchange=self._menu_change_cb_mode,
+            onchange=self._menu_set_cb_mode,
             default=False,
             width=90,
             toggleswitch_id="CB_MODE"
@@ -719,7 +723,6 @@ class DungeonCross:
         menu.add.button("About", self._menu_about)
         menu.add.button('Quit', self._menu_quit)
         return menu
-
     def _menu_build_about(self):
         menu: pygame_menu.Menu = pygame_menu.Menu(
             "About", 
@@ -735,7 +738,6 @@ class DungeonCross:
             menu.add.label(line.splitlines()[0], align=pygame_menu.locals.ALIGN_LEFT)
         menu.add.image(resource_path("sprite/hydra3.png"))
         return menu
-    
     def _menu_build_tutorial(self):
         menu: pygame_menu.Menu = pygame_menu.Menu(
             "Tutorial", 
@@ -796,6 +798,7 @@ def main():
 
     # create display window
     screen = pygame.display.set_mode(G_RESOLUTION)
+    pygame.display.set_caption(f"Dungeon Cross - {VERSION}")
     pygame.display.set_allow_screensaver = True
     show_splash(screen)
 
