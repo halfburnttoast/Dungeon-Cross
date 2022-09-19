@@ -41,7 +41,7 @@ from save_game import SaveFile
 from debug_timer import debug_timer
 from mouse_action_enum import MouseAction
 
-VERSION = "v1.0.2"
+VERSION = "v1.0.3"
 G_LOG_LEVEL = logging.INFO
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -625,7 +625,7 @@ class DungeonCross:
         self.open_random_puzzle()
         self._menu_close()
     def _menu_reset(self):
-        self.open_puzzle(self.current_puzzle_id())
+        self.open_puzzle(self.current_puzzle_id)
         self._menu_close()
     def _menu_update_pid(self, value):
         try:
