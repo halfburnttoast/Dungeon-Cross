@@ -19,10 +19,12 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 
+from copy import deepcopy
 import math
 import gzip
 import json
 import time
+import numpy
 import pygame
 import random
 import logging
@@ -41,8 +43,8 @@ from save_game import SaveFile
 from debug_timer import debug_timer
 from mouse_action_enum import MouseAction
 
-VERSION = "v1.0.3"
-G_LOG_LEVEL = logging.INFO
+VERSION = "v1.1.0-b.1"
+G_LOG_LEVEL = logging.DEBUG
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 60
@@ -194,14 +196,23 @@ class DungeonCross:
             logging.warning(f"Error reading file: {file_name}")
             raise
     
-    def open_puzzle(self, num: int = 0) -> None:
+    def open_puzzle(self, fq_map_id: int = 0) -> None:
         """
         Opens a puzzle by ID. Whatever method you use to select a puzzle number
         by should end with calling this method. Invalid puzzle IDs will default
-        to puzzle #0.
+        to puzzle #0. The two left-most digits determine the orientation of the 
+        map. For example, map #1200045 can be viewed as map 1-2-00045, which will: 
+            Load map number 00045 
+            Rotate the map 90-degrees clockwise twice (2)
+            Flip the map (1)
         """
 
-        logging.info(f"Opening puzzle #{num:05d}.")
+        map_id_str: str = f"{fq_map_id:07d}"
+        flip: bool = bool(int(map_id_str[0]))
+        rot: int = int(map_id_str[1]) % 4
+        num: int = int(map_id_str[2:])
+
+        logging.info(f"Opening puzzle #{num:05d} with modifiers r({rot}), f({flip}).")
 
         # reset board data
         self._hint_x = [0] * 8
@@ -222,17 +233,30 @@ class DungeonCross:
         # load and setup game board
         self.game_won = False
         self._open_puzzle_id = num
-        self._board_layout = self._puzzle_book[num]
+        self._board_layout = deepcopy(self._puzzle_book[num])
+
+        # apply modifications after map load if needed
+        if rot != 0:
+            mp: numpy.ndarray = numpy.array(self._board_layout)
+            for _ in range(rot):
+                mp = numpy.rot90(mp)
+            self._board_layout = mp.tolist()
+        if flip != 0:
+            mp: numpy.ndarray = numpy.array(self._board_layout)
+            mp = numpy.flip(mp)
+            self._board_layout = mp.tolist()
+        
+        # prepare rest of the board
         self._calc_hints()
         self._placed_walls = self._strip_walls()
         self._check_board_state = False
         self._sound.play_sfx(self._sound_open)
         self._update_hint_vars()
         self._map_hash = hashlib.sha256(repr(self._board_layout).encode()).hexdigest()
-        self._menu.get_widget("PUZZLE_ID").set_value(f"{num:05d}")
+        self._menu.get_widget("PUZZLE_ID").set_value(f"{fq_map_id:07d}")
         self._menu_pid = num
         logging.debug(f"Map hash: {self._map_hash}")
-        pygame.display.set_caption(f"Dungeon Cross - {VERSION} - Puzzle #{num:05d} - Wins: {self._player_wins}")
+        pygame.display.set_caption(f"Dungeon Cross - {VERSION} - Puzzle #{fq_map_id:07d} - Wins: {self._player_wins}")
         self._needs_display_update = True
     
     def open_random_puzzle(self):
@@ -240,6 +264,9 @@ class DungeonCross:
         pid = random.choice(range(0, len(self._puzzle_book)))
         if pid == self.current_puzzle_id:
             pid = (pid + 1) % len(self._puzzle_book)
+        flip = random.randint(0, 1)
+        rot = random.randint(0, 3)
+        pid = int(f"{flip:01d}{rot:01d}{pid:05d}")
         self.open_puzzle(pid)
 
     def handle_io_event(self, event: pygame.event.Event) -> bool:
@@ -687,8 +714,8 @@ class DungeonCross:
         menu.add.vertical_fill(2)
         menu.add.text_input(
             'Puzzle ID: ',
-            default='00000',
-            maxchar=5,
+            default='0000000',
+            maxchar=7,
             valid_chars=[*'0123456789'],
             onchange=self._menu_update_pid,
             onreturn=self._menu_open_map,
@@ -807,7 +834,7 @@ def main():
 
     # create game and load levels
     game = DungeonCross(screen, sound)
-    game.load_puzzle_book()
+    game.load_puzzle_book('debug_puzzles.json.gz')
     game.load_save()
     game_run = True
 
