@@ -43,7 +43,7 @@ from save_game import SaveFile
 from debug_timer import debug_timer
 from mouse_action_enum import MouseAction
 
-VERSION = "v1.1.0-b.1"
+VERSION = "v1.1.0-b.2"
 G_LOG_LEVEL = logging.DEBUG
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
@@ -333,11 +333,14 @@ class DungeonCross:
 
                 # open the last puzzle and reload user progress
                 self.open_puzzle(data["LEVEL"])
+                logging.debug(f"Save hash: {data['MAPHASH']}")
                 if data["MAPHASH"] == self._map_hash:
                     self._placed_walls = data["PROGRESS"]
                     self._update_hint_vars()
                 else:
                     logging.warning("Map hash invalid for puzzle ID.")
+                    logging.warning(f"Expected: {data['MAPHASH']}")
+                    logging.warning(f"Actual  : {self._map_hash}")
                     self.open_random_puzzle()
             else:
                 self.open_random_puzzle()
@@ -356,6 +359,7 @@ class DungeonCross:
             save_data["LEVEL"] = self.current_puzzle_id
             save_data["PROGRESS"] = self._placed_walls
             save_data["MAPHASH"] = self._map_hash
+            logging.debug(f"Save hash: {self._map_hash}")
             self._save_file.store_save_data(save_data)
         except Exception as e:  # temporary catchall
             logging.error(f"Could not save to save file. \n{e}")
