@@ -207,6 +207,7 @@ class DungeonCross:
             Flip the map (1)
         """
 
+        logging.debug(f"Input fq_map_id: {fq_map_id}")
         map_id_str: str = f"{fq_map_id:07d}"
         flip: bool = bool(int(map_id_str[0]))
         rot: int = int(map_id_str[1]) % 4
@@ -232,7 +233,7 @@ class DungeonCross:
 
         # load and setup game board
         self.game_won = False
-        self._open_puzzle_id = num
+        self._open_puzzle_id = fq_map_id
         self._board_layout = deepcopy(self._puzzle_book[num])
 
         # apply modifications after map load if needed
@@ -262,11 +263,12 @@ class DungeonCross:
     def open_random_puzzle(self):
         """Opens a random puzzle. Will not select the same puzzle twice in a row."""
         pid = random.choice(range(0, len(self._puzzle_book)))
-        if pid == self.current_puzzle_id:
-            pid = (pid + 1) % len(self._puzzle_book)
         flip = random.randint(0, 1)
         rot = random.randint(0, 3)
         pid = int(f"{flip:01d}{rot:01d}{pid:05d}")
+        if pid == self.current_puzzle_id:
+            pid = (pid + 1) % len(self._puzzle_book)
+        self._open_puzzle_id = pid
         self.open_puzzle(pid)
 
     def handle_io_event(self, event: pygame.event.Event) -> bool:
