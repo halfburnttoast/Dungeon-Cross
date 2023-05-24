@@ -43,8 +43,8 @@ from save_game import SaveFile
 from debug_timer import debug_timer
 from mouse_action_enum import MouseAction
 
-VERSION = "v1.1.0-b.2"
-G_LOG_LEVEL = logging.DEBUG
+VERSION = "v1.1.0"
+G_LOG_LEVEL = logging.INFO
 TILE_SIZE = 90
 G_RESOLUTION = (TILE_SIZE * 9, TILE_SIZE * 9)
 TARGET_FPS = 60
@@ -840,7 +840,7 @@ def main():
 
     # create game and load levels
     game = DungeonCross(screen, sound)
-    game.load_puzzle_book('debug_puzzles.json.gz')
+    game.load_puzzle_book('puzzles.json.gz')
     game.load_save()
     game_run = True
 
