@@ -4,7 +4,7 @@ This game is similar to picross with a few twists.
 
 The numbers on the rows and columns indicate the number of walls on that column or row. 
 
-A treasure chest is always in a 3x3 empty room with exactly ONE entrance. The chest can appear in ANY of the 3x3 tiles in that room. (Yes, a treasure chest can appear directly in the entrance)
+Each treasure room contains a single chest in a 3x3 grid of walkable tiles and has a single entry point located orthogonally adjacent and outside the treasure room. The treasure room must be fully enclosed by walls or the map border on all orthogonally surrounding sides, except for the designated entry point, which must be an empty tile.
 
 Any "dead-end" (a tile with three walls surrounding it, including borders) MUST contain a monster. A dead-end can't exist without a monster.
 
