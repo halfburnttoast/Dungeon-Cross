@@ -1,3 +1,5 @@
+
+
 # Dungeon Cross
 A Python + Pygame stand-alone, reimplementation of Zachtronic's Dungeons and Diagrams. I love Picross and Dungeons and Diagrams is an amazing twist on classic nonograms. I wanted to have a stand-alone version of this game to have open in the background while I do other things. Hence this project was born.
 
@@ -33,7 +35,7 @@ To run the program, you can then run this command from the main game directory:
 Alternatively, you can download the pre-compiled binaries listed under releases. 
 
 ### Building
-Included with this repository is a Makefile for Linux and MacOS and a Batch file for Windows. To run either of these, you'll need to have Python 3.7 or newer installed WITH the 'Add to path' option selected. From there, you can build the game to an binary file by doing the following:
+Included with this repository is a Makefile for Linux and MacOS and a Batch file for Windows. To run either of these, you'll need to have Python 3.7 or newer installed WITH the 'Add to path' option selected. From there, you can build the game to a binary file by doing the following:
 
 ###### Windows
 Double click on `make.bat`. A command prompt window will appear. It will install the required libraries and build to the `dist/` folder.
